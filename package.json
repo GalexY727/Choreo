@@ -95,7 +95,7 @@
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
     "dev": "concurrently -k \"set \"BROWSER=none\" && npm start\" \"npm:electron\"",
-    "electron": "wait-on tcp:3000 && electron ."
+    "electron": "electron ."
   },
   "eslintConfig": {
     "extends": [
