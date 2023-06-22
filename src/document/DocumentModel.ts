@@ -12,6 +12,8 @@ import {
   SAVE_FILE_VERSION,
 } from "./DocumentSpecTypes";
 
+const trajopt = require("bindings")("../node_modules/@sleipnirgroup/trajoptlib/build/Release/trajoptlib-node")
+
 // Save file data types:
 
 // State tree data types:
@@ -312,14 +314,54 @@ export const HolonomicPathStore = types
         if (self.waypoints.length < 2) {
           return;
         }
+        let path = new trajopt.SwervePathBuilder();
+
+        let drive = {
+          mass: 45,
+          moi: 6,
+          modules: [
+            {
+              x: 0.6,
+              y: 0.6,
+              wheelRadius: 0.04,
+              wheelMaxAngularVelocity: 70,
+              wheelMaxTorque: 2
+            },
+            {
+              x: 0.6,
+              y: -0.6,
+              wheelRadius: 0.04,
+              wheelMaxAngularVelocity: 70,
+              wheelMaxTorque: 2
+            },
+            {
+              x: -0.6,
+              y: 0.6,
+              wheelRadius: 0.04,
+              wheelMaxAngularVelocity: 70,
+              wheelMaxTorque: 2
+            },
+            {
+              x: -0.6,
+              y: -0.6,
+              wheelRadius: 0.04,
+              wheelMaxAngularVelocity: 70,
+              wheelMaxTorque: 2
+            }
+          ]
+        }
+
+        path.setDrivetrain(drive);
+
         self.waypoints.forEach((point, index) => {
-          let newPoint = TrajectorySampleStore.create();
-          newPoint.setX(point.x);
-          newPoint.setY(point.y);
-          newPoint.setHeading(point.heading);
-          newPoint.setTimestamp(index);
-          self.generated.push(newPoint);
+          path.poseWpt(index, point.x, point.y, point.heading);
         });
+        path.wptZeroVelocity(0);
+        path.wptZeroAngularVelocity(0);
+        path.wptZeroVelocity(self.waypoints.length - 1);
+        path.wptZeroAngularVelocity(self.waypoints.length - 1);
+
+        self.generated = path.generate();
       },
     };
   });
