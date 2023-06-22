@@ -24,6 +24,7 @@ class FieldPathLines extends Component<Props, State> {
     });
     return (
       <>
+        {this.context.model.pathlist.activePath.generated.map((point)=>(<circle cx={point.x} cy={point.y} r={0.1}></circle>))}
         <polyline
           points={pathString}
           stroke="grey"
