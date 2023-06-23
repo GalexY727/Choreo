@@ -309,6 +309,10 @@ export const HolonomicPathStore = types
         //self.waypoints.splice(endIndex, 0, self.waypoints.splice(startIndex, 1)[0]);
         moveItem(self.waypoints, startIndex, endIndex);
       },
+      setTrajectory(trajectory: [SavedTrajectorySample]) {
+        // @ts-ignore
+        self.generated = trajectory;
+      },
       generatePath() {
         self.generated.length = 0;
         if (self.waypoints.length < 2) {
@@ -356,12 +360,19 @@ export const HolonomicPathStore = types
         self.waypoints.forEach((point, index) => {
           path.poseWpt(index, point.x, point.y, point.heading);
         });
+      
         path.wptZeroVelocity(0);
         path.wptZeroAngularVelocity(0);
         path.wptZeroVelocity(self.waypoints.length - 1);
         path.wptZeroAngularVelocity(self.waypoints.length - 1);
 
-        self.generated = path.generate();
+        // @ts-ignore
+        path.generate().then((result) => {
+          // @ts-ignore
+          this.setTrajectory(result);
+        });
+        
+
       },
     };
   });
