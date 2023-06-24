@@ -94,11 +94,11 @@
     "formatfix": "prettier --write .",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "start": "electron-forge start",
+    "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
     "dev": "concurrently -k \"set \"BROWSER=none\" && npm start\" \"npm:electron\"",
-    "electron": "electron .",
+    "electron": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
