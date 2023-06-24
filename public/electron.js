@@ -1,7 +1,7 @@
 const path = require('path');
 
 const { app, BrowserWindow, Menu, MenuItem, dialog } = require('electron');
-const isDev = require('electron-is-dev');
+const isDev = app.isPackaged ? false : require('electron-is-dev');
 
 function createWindow() {
   // Create the browser window.
@@ -18,7 +18,7 @@ function createWindow() {
   win.loadURL(
     isDev
       ? 'http://localhost:3000'
-      : `file://${path.join(__dirname, '../build/index.html')}`
+      : `file://${path.join(__dirname, '../public/index.html')}`
   );
   // Open the DevTools.
   if (isDev) {
