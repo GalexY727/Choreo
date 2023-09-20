@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from "uuid";
 import { VERSIONS, validate } from "./DocumentSpecTypes";
 import { applySnapshot, getRoot, onPatch } from "mobx-state-tree";
 import { toJS } from "mobx";
+import { window } from "@tauri-apps/api"
+import { TauriEvent } from "@tauri-apps/api/event"
 
 export class DocumentManager {
   simple: any;
@@ -15,7 +17,6 @@ export class DocumentManager {
     this.model.document.history.canRedo && this.model.document.history.redo();
   }
   get history() {
-    console.log(toJS(this.model.document.history.history));
     return this.model.document.history;
   }
   model: IStateStore;
@@ -30,8 +31,28 @@ export class DocumentManager {
         pathlist: {},
       },
     });
-    this.model.document.pathlist.addPath("NewPath");
-    this.model.document.history.clear();
+    window.getCurrent().listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async () => {
+      if (this.model.uiState.saveFileName !== "") {this.saveFile()}
+      else {
+        if (await dialog.ask("Save project?", {title: "Choreo", type: "warning"})) {
+          this.saveFile();
+        }
+      }
+      window.getCurrent().close();
+    })
+    this.loadPriorFile();
+  }
+
+  async loadPriorFile() {
+    var saveFileFromStorage = localStorage.getItem("saveFileName");
+    if (saveFileFromStorage !== null && saveFileFromStorage !== "" && await fs.exists(saveFileFromStorage)) {
+      this.loadFileContents(await fs.readTextFile(saveFileFromStorage))
+      this.model.uiState.setSaveFileName(saveFileFromStorage)
+      this.model.document.history.clear();
+    }
+    else {
+      this.newFile();
+    }
   }
   newFile(): void {
     applySnapshot(this.model, {
@@ -44,7 +65,7 @@ export class DocumentManager {
         pathlist: {},
       },
     });
-
+    this.model.uiState.setSaveFileName("");
     this.model.document.pathlist.addPath("NewPath");
     this.model.document.history.clear();
   }
@@ -52,7 +73,6 @@ export class DocumentManager {
     if (file == null) {
       return Promise.reject("Tried to upload a null file");
     }
-    this.model.uiState.setSaveFileName(file.name);
     return new Promise((resolve, reject) => {
       const fileReader = new FileReader();
       fileReader.onload = (event) => {
@@ -68,15 +88,28 @@ export class DocumentManager {
   }
   async onFileUpload(file: File | null) {
     await this.parseFile(file)
-      .then((content) => {
-        const parsed = JSON.parse(content);
-        if (validate(parsed)) {
-          this.model.fromSavedDocument(parsed);
-        } else {
-          console.error("Invalid Document JSON");
-        }
-      })
+      .then((content) => {this.loadFileContents(content)})
       .catch((err) => console.log(err));
+  }
+
+  async openFile() {
+    var file = await dialog.open({
+      title: "Save Document",
+      multiple: false,
+      filters: [
+        {
+          name: "Trajopt Document",
+          extensions: ["chor"],
+        },
+      ],
+    });
+    if (file===null) return;
+    if (Array.isArray(file)) {
+      file = file[0];
+    }
+    this.model.uiState.setSaveFileName(file)
+    this.loadFileContents(await fs.readTextFile(file))
+    
   }
 
   async exportTrajectory(uuid: string) {
@@ -93,11 +126,11 @@ export class DocumentManager {
     const content = JSON.stringify(trajectory, undefined, 4);
     const filePath = await dialog.save({
       title: "Export Trajectory",
-      defaultPath: `${path.name}.json`,
+      defaultPath: `${path.name}.traj`,
       filters: [
         {
           name: "Trajopt Trajectory",
-          extensions: ["json"],
+          extensions: ["traj"],
         },
       ],
     });
@@ -111,15 +144,14 @@ export class DocumentManager {
     );
   }
 
-  async loadFile(jsonFilename: string) {
-    await fetch(jsonFilename, { cache: "no-store" })
-      .then((res) => {
-        return res.json();
-      })
-      .then((data) => {
-        this.model.fromSavedDocument(data);
-      })
-      .catch((err) => console.log(err));
+  async loadFileContents(contents: string) {
+    const parsed = JSON.parse(contents);
+    if (validate(parsed)) {
+      this.model.fromSavedDocument(parsed);
+      this.model.document.history.clear();
+    } else {
+      console.error("Invalid Document JSON");
+    }
   }
 
   async saveFile() {
@@ -128,16 +160,23 @@ export class DocumentManager {
       console.warn("Invalid Doc JSON:\n" + "\n" + content);
       return;
     }
-    const filePath = await dialog.save({
-      title: "Save Document",
-      filters: [
-        {
-          name: "Trajopt Document",
-          extensions: ["json"],
-        },
-      ],
-    });
+    var  filePath : string | null;
+    if (this.model.uiState.saveFileName !== "") {
+      filePath = this.model.uiState.saveFileName;
+    } else {
+      filePath = await dialog.save({
+        title: "Save Document",
+        filters: [
+          {
+            name: "Trajopt Document",
+            extensions: ["chor"],
+          },
+        ],
+      });
+    }
+
     if (filePath) {
+      this.model.uiState.setSaveFileName(filePath);
       await fs.writeTextFile(filePath, content);
     }
   }

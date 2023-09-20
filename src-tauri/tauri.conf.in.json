@@ -21,8 +21,15 @@
         "all": true
       },
       "dialog": {
+        "ask": true,
         "open": true,
         "save": true
+      },
+      "path": {
+        "all": true
+      },
+      "window": {
+        "setTitle": true
       }
     },
     "bundle": {

@@ -15,7 +15,6 @@ import IconButton from "@mui/material/IconButton";
 import FileDownload from "@mui/icons-material/FileDownload";
 import Tooltip from "@mui/material/Tooltip";
 import { NoteAddOutlined } from "@mui/icons-material";
-
 type Props = {};
 
 type State = {};
@@ -67,14 +66,14 @@ class AppMenu extends Component<Props, State> {
             Choreo
           </div>
           <List>
-            <label htmlFor="file-upload-input">
-              <ListItemButton>
+              <ListItemButton
+                onClick={()=>this.context.openFile()}
+              >
                 <ListItemIcon>
                   <UploadIcon />
                 </ListItemIcon>
                 <ListItemText primary="Open File"></ListItemText>
               </ListItemButton>
-            </label>
             <ListItemButton
               onClick={() => {
                 this.context.saveFile();
@@ -106,22 +105,6 @@ class AppMenu extends Component<Props, State> {
               <ListItemText primary="Export Trajectory"></ListItemText>
             </ListItemButton>
           </List>
-          <input
-            type="file"
-            id="file-upload-input"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              if (
-                e.target != null &&
-                e.target.files != null &&
-                e.target.files.length >= 1
-              ) {
-                let fileList = e.target.files;
-                this.context.onFileUpload(fileList[0]);
-                e.target.value = "";
-              }
-            }}
-          ></input>
         </div>
       </Drawer>
     );

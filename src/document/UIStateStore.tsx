@@ -5,6 +5,9 @@ import {
   Route,
   SquareOutlined,
 } from "@mui/icons-material";
+import { fs, path} from "@tauri-apps/api";
+import {appWindow} from "@tauri-apps/api/window";
+import { getVersion } from '@tauri-apps/api/app';
 import { getRoot, Instance, types } from "mobx-state-tree";
 import { ReactElement } from "react";
 import InitialGuessPoint from "../assets/InitialGuessPoint";
@@ -17,6 +20,7 @@ import {
   IConstraintStore,
 } from "./ConstraintStore";
 import { IStateStore } from "./DocumentModel";
+import { SAVE_FILE_VERSION } from "./DocumentSpecTypes";
 import {
   HolonomicWaypointStore,
   IHolonomicWaypointStore,
@@ -172,7 +176,7 @@ export type ViewLayerType = typeof ViewLayers;
 export const UIStateStore = types
   .model("UIStateStore", {
     fieldScalingFactor: 0.02,
-    saveFileName: "save",
+    saveFileName: types.optional(types.string, ""),
     waypointPanelOpen: false,
     visibilityPanelOpen: false,
     mainMenuOpen: false,
@@ -213,7 +217,7 @@ export const UIStateStore = types
       },
     };
   })
-  .actions((self: any) => ({
+  .actions((self: any) => ({    
     setMainMenuOpen(open: boolean) {
       self.mainMenuOpen = open;
     },
@@ -225,6 +229,18 @@ export const UIStateStore = types
     },
     setSaveFileName(name: string) {
       self.saveFileName = name;
+      localStorage.setItem("saveFileName", name);
+      
+      (async ()=> {
+        var titleName;
+        if (name === "") {
+          titleName = "Untitled";
+        } else {
+          titleName = await path.basename(name);
+        }
+        appWindow.setTitle(`${titleName} - Choreo ${await getVersion()}`)
+      })();
+       
     },
     setWaypointPanelOpen(open: boolean) {
       self.waypointPanelOpen = open;

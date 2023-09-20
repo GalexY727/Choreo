@@ -80,6 +80,12 @@ fn fix_scope(idx: usize, removed_idxs: &Vec<usize>) -> usize {
   }
   return idx-to_subtract;
 }
+
+#[tauri::command]
+async fn expand_fs_scope(build_gradle_path: str) {
+  
+}
+
 #[tauri::command]
 async fn generate_trajectory(path: Vec<ChoreoWaypoint>, config: ChoreoRobotConfig, constraints: Vec<Constraints>) -> Result<HolonomicTrajectory, String> {
 
@@ -218,7 +224,9 @@ async fn generate_trajectory(path: Vec<ChoreoWaypoint>, config: ChoreoRobotConfi
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_persisted_scope::init())
         .invoke_handler(tauri::generate_handler![generate_trajectory])
+        .invoke_handler(tauri::generate_handler![expand_fs_scope])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
