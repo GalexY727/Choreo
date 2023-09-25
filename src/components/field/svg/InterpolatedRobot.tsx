@@ -2,6 +2,7 @@ import { observer } from "mobx-react";
 import React, { Component } from "react";
 import DocumentManagerContext from "../../../document/DocumentManager";
 import { ITrajectorySampleStore } from "../../../document/DocumentModel";
+import { SavedTrajectorySample } from "../../../document/DocumentSpecTypes";
 
 type Props = {
   timestamp: number;
@@ -35,7 +36,7 @@ class InterpolatedRobot extends Component<Props, State> {
 
   // This came from WPILib Java's Trajectory sample() method
 
-  sample(timeSeconds: number, m_states: Array<ITrajectorySampleStore>): Pose {
+  sample(timeSeconds: number, m_states: Array<SavedTrajectorySample>): Pose {
     if (timeSeconds <= m_states[0].timestamp) {
       return this.storeToPose(m_states[0]);
     }
@@ -53,7 +54,8 @@ class InterpolatedRobot extends Component<Props, State> {
     let high = m_states.length - 1;
 
     while (low !== high) {
-      let mid = (low + high) / 2;
+      let mid = Math.floor((low + high) / 2);
+      console.log(m_states, mid, low, high);
       if (m_states[mid].timestamp < timeSeconds) {
         // This index and everything under it are less than the requested
         // timestamp. Therefore, we can discard them.

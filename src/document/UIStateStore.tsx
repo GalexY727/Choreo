@@ -5,10 +5,15 @@ import {
   Route,
   SquareOutlined,
 } from "@mui/icons-material";
-import { fs, path} from "@tauri-apps/api";
-import {appWindow} from "@tauri-apps/api/window";
-import { getVersion } from '@tauri-apps/api/app';
-import { getRoot, Instance, types } from "mobx-state-tree";
+import { fs, path } from "@tauri-apps/api";
+import { appWindow } from "@tauri-apps/api/window";
+import { getVersion } from "@tauri-apps/api/app";
+import {
+  castToReferenceSnapshot,
+  getRoot,
+  Instance,
+  types,
+} from "mobx-state-tree";
 import { ReactElement } from "react";
 import InitialGuessPoint from "../assets/InitialGuessPoint";
 import Waypoint from "../assets/Waypoint";
@@ -184,6 +189,7 @@ export const UIStateStore = types
     layers: types.array(types.boolean),
     selectedSidebarItem: types.maybe(types.safeReference(SelectableItem)),
     selectedNavbarItem: NavbarLabels.FullWaypoint,
+    saving: false
   })
   .views((self: any) => {
     return {
@@ -217,7 +223,10 @@ export const UIStateStore = types
       },
     };
   })
-  .actions((self: any) => ({    
+  .actions((self: any) => ({
+    setSaving(saving: boolean) {
+      self.saving = saving;
+    },
     setMainMenuOpen(open: boolean) {
       self.mainMenuOpen = open;
     },
@@ -230,17 +239,16 @@ export const UIStateStore = types
     setSaveFileName(name: string) {
       self.saveFileName = name;
       localStorage.setItem("saveFileName", name);
-      
-      (async ()=> {
+
+      (async () => {
         var titleName;
         if (name === "") {
           titleName = "Untitled";
         } else {
           titleName = await path.basename(name);
         }
-        appWindow.setTitle(`${titleName} - Choreo ${await getVersion()}`)
+        appWindow.setTitle(`${titleName} - Choreo ${await getVersion()}`);
       })();
-       
     },
     setWaypointPanelOpen(open: boolean) {
       self.waypointPanelOpen = open;
@@ -252,7 +260,7 @@ export const UIStateStore = types
       self.pathAnimationTimestamp = time;
     },
     setSelectedSidebarItem(item: SelectableItemTypes) {
-      self.selectedSidebarItem = item;
+      self.selectedSidebarItem = castToReferenceSnapshot(item);
     },
     setLayerVisible(layer: number, visible: boolean) {
       self.layers.length = Math.max(layer + 1, self.layers.length);

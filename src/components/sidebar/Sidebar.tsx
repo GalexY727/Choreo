@@ -52,7 +52,7 @@ class Sidebar extends Component<Props, State> {
                 <MenuIcon></MenuIcon>
               </IconButton>
             </Tooltip>
-            Choreo
+            Choreo {this.context.model.uiState.saving ? "!" : ""}
           </span>
           <span>
             <Tooltip title="Undo">

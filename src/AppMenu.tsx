@@ -63,17 +63,22 @@ class AppMenu extends Component<Props, State> {
                 <MenuIcon></MenuIcon>
               </IconButton>
             </Tooltip>
-            Choreo
+            Choreo{" "}
+            {this.context.model.document.projectRoot !== "" ? " - Linked" : ""}
           </div>
           <List>
-              <ListItemButton
-                onClick={()=>this.context.openFile()}
-              >
-                <ListItemIcon>
-                  <UploadIcon />
-                </ListItemIcon>
-                <ListItemText primary="Open File"></ListItemText>
-              </ListItemButton>
+            <ListItemButton onClick={() => this.context.openFile()}>
+              <ListItemIcon>
+                <UploadIcon />
+              </ListItemIcon>
+              <ListItemText primary="Open File"></ListItemText>
+            </ListItemButton>
+            <ListItemButton onClick={() => this.context.selectBuildGradle()}>
+              <ListItemIcon>
+                <UploadIcon />
+              </ListItemIcon>
+              <ListItemText primary="Link to Robot Project"></ListItemText>
+            </ListItemButton>
             <ListItemButton
               onClick={() => {
                 this.context.saveFile();

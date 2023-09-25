@@ -1,6 +1,13 @@
+use std::fs;
+use std::path::Path;
+
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
+use tauri::Manager;
+use tauri::api::dir;
+use tauri::scope::GlobPattern;
+use tauri::api::file;
+use tauri::api::path;
 use trajoptlib::{SwervePathBuilder, HolonomicTrajectory, SwerveDrivetrain, SwerveModule, InitialGuessPoint};
 // A way to make properties that exist on all enum variants accessible from the generic variant
 // I have no idea how it works but it came from
@@ -82,12 +89,17 @@ fn fix_scope(idx: usize, removed_idxs: &Vec<usize>) -> usize {
 }
 
 #[tauri::command]
-async fn expand_fs_scope(build_gradle_path: str) {
-  
+async fn expand_fs_scope( app_handle: tauri::AppHandle, path: &str, is_file: bool) -> Result<(),String> {
+      if (is_file) {
+        app_handle.app_handle().fs_scope().allow_file(path);
+      } else {
+        app_handle.app_handle().fs_scope().allow_directory(path, true);
+      }
+      Ok(())
 }
 
 #[tauri::command]
-async fn generate_trajectory(path: Vec<ChoreoWaypoint>, config: ChoreoRobotConfig, constraints: Vec<Constraints>) -> Result<HolonomicTrajectory, String> {
+async fn generate_trajectory(path: Vec<ChoreoWaypoint>, config: ChoreoRobotConfig, constraints: Vec<Constraints>, filepath: &str) -> Result<HolonomicTrajectory, String> {
 
     let mut path_builder = SwervePathBuilder::new();
     let mut wpt_cnt : usize = 0;
@@ -217,16 +229,36 @@ async fn generate_trajectory(path: Vec<ChoreoWaypoint>, config: ChoreoRobotConfi
         ]
       };
     //path_builder.set_bumpers(config.bumperLength, config.bumperWidth);
-    path_builder.sgmt_circle_obstacle(0, path.len()-1, 3.0, 3.0, 1.0);
     path_builder.set_drivetrain(&drivetrain);
-    path_builder.generate()
+    let output = path_builder.generate();
+    
+    match output {
+      Ok(traj) =>{
+        println!("Filepath {}", filepath);
+        if filepath != "" {
+          let the_path = Path::new(filepath);
+          let dir_path = the_path.parent();
+          match the_path.parent() {
+            Some(dir_path) => {
+              if (!(dir_path.try_exists().unwrap_or(false))) {
+                fs::create_dir(dir_path);
+              }
+            },
+            _=>{}
+          }
+          fs::write(the_path, serde_json::to_string_pretty(&traj).unwrap());          
+      }
+      Ok(traj)
+    },
+    Err(message) => Err(message),
+    _ => {return Err("Unknown error in generation".to_string());}
+    }
 }
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_persisted_scope::init())
-        .invoke_handler(tauri::generate_handler![generate_trajectory])
-        .invoke_handler(tauri::generate_handler![expand_fs_scope])
+        .invoke_handler(tauri::generate_handler![generate_trajectory, expand_fs_scope])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

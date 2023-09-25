@@ -31,6 +31,17 @@ import {
   SAVE_FILE_VERSION as v0_1_Version,
 } from "./previousSpecs/v0_1";
 import v0_1_Schema from "./previousSpecs/v0.1.json";
+import {
+  SavedDocument as v0_2,
+  SavedPath as v0_2_Path,
+  SavedWaypoint as v0_2_Waypoint,
+  SavedTrajectorySample as v0_2_Sample,
+  SavedPathList as v0_2_Pathlist,
+  SavedRobotConfig as v0_2_Config,
+  SavedConstraint as v0_2_Constraint,
+  SAVE_FILE_VERSION as v0_2_Version,
+} from "./previousSpecs/v0_2";
+import v0_2_Schema from "./previousSpecs/v0.2.json";
 
 // Paste new version import blocks above this line.
 // Update the import path in the below to point to a particular version as current
@@ -42,9 +53,9 @@ export type {
   SavedRobotConfig,
   SavedWaypoint,
   SavedConstraint,
-} from "./previousSpecs/v0_1";
-export { SAVE_FILE_VERSION } from "./previousSpecs/v0_1";
-import { SAVE_FILE_VERSION } from "./previousSpecs/v0_1";
+} from "./previousSpecs/v0_2";
+export { SAVE_FILE_VERSION } from "./previousSpecs/v0_2";
+import { SAVE_FILE_VERSION } from "./previousSpecs/v0_2";
 import Ajv from "ajv";
 
 export let VERSIONS = {
@@ -106,12 +117,25 @@ export let VERSIONS = {
     },
   },
   "v0.1": {
-    up: (document: any): v0_1 => {
-      return document as v0_1;
+    up: (document: any): v0_2 => {
+      return {
+        isRobotProject: false,
+        ...document,
+        version: v0_2_Version,
+      } as v0_2;
     },
     validate: (document: v0_1): boolean => {
       const ajv = new Ajv();
       return ajv.validate(v0_1_Schema, document);
+    },
+  },
+  "v0.2": {
+    up: (document: any): v0_2 => {
+      return document as v0_2;
+    },
+    validate: (document: v0_2): boolean => {
+      const ajv = new Ajv();
+      return ajv.validate(v0_2_Schema, document);
     },
   },
 };
@@ -129,6 +153,8 @@ export let updateToCurrent = (document: { version: string }): SavedDocument => {
       console.log(version);
       document = VERSIONS[version as keyof typeof VERSIONS].up(document);
       version = document.version;
+    } else {
+      console.error("Unknown version", document.version);
     }
   }
   console.log(document);

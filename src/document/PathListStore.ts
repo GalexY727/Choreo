@@ -68,6 +68,12 @@ export const PathListStore = types
         path
           .addConstraint(ConstraintStores.WptZeroVelocity)
           ?.setScope(["last"]);
+          path
+          .addConstraint(ConstraintStores.ZeroAngularVelocity)
+          ?.setScope(["first"]);
+        path
+          .addConstraint(ConstraintStores.ZeroAngularVelocity)
+          ?.setScope(["last"]);
         self.paths.put(path);
         if (self.paths.size === 1 || select) {
           self.activePathUUID = newUUID;

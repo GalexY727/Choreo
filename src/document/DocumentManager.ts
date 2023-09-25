@@ -1,15 +1,15 @@
 import { createContext } from "react";
 import StateStore, { IStateStore } from "./DocumentModel";
-import { dialog, fs } from "@tauri-apps/api";
+import { dialog, fs, invoke } from "@tauri-apps/api";
 import { v4 as uuidv4 } from "uuid";
-import { VERSIONS, validate } from "./DocumentSpecTypes";
+import { VERSIONS, validate, SAVE_FILE_VERSION } from "./DocumentSpecTypes";
 import { applySnapshot, getRoot, onPatch } from "mobx-state-tree";
-import { toJS } from "mobx";
-import { window } from "@tauri-apps/api"
-import { TauriEvent } from "@tauri-apps/api/event"
+import { autorun, reaction, toJS } from "mobx";
+import { window, path } from "@tauri-apps/api";
+import { TauriEvent } from "@tauri-apps/api/event";
+import { IHolonomicPathStore } from "./HolonomicPathStore";
 
 export class DocumentManager {
-  simple: any;
   undo() {
     this.model.document.history.canUndo && this.model.document.history.undo();
   }
@@ -17,6 +17,7 @@ export class DocumentManager {
     this.model.document.history.canRedo && this.model.document.history.redo();
   }
   get history() {
+    console.log(toJS(this.model.document.history.history));
     return this.model.document.history;
   }
   model: IStateStore;
@@ -29,28 +30,47 @@ export class DocumentManager {
       document: {
         robotConfig: { identifier: uuidv4() },
         pathlist: {},
+        isRobotProject: false,
+        projectRoot: "",
       },
     });
     window.getCurrent().listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async () => {
-      if (this.model.uiState.saveFileName !== "") {this.saveFile()}
-      else {
-        if (await dialog.ask("Save project?", {title: "Choreo", type: "warning"})) {
+      if (this.model.uiState.saveFileName !== "") {
+        this.saveFile();
+      } else {
+        if (
+          await dialog.ask("Save project?", {
+            title: "Choreo",
+            type: "warning",
+          })
+        ) {
           this.saveFile();
         }
       }
       window.getCurrent().close();
-    })
+    });
     this.loadPriorFile();
+
+    reaction(
+      () => this.model.document.history.undoIdx,
+      () => {
+        if (this.model.uiState.saveFileName !== "") {
+          this.saveFile();
+          console.log("saved");
+        }
+      }
+    );
   }
 
   async loadPriorFile() {
     var saveFileFromStorage = localStorage.getItem("saveFileName");
-    if (saveFileFromStorage !== null && saveFileFromStorage !== "" && await fs.exists(saveFileFromStorage)) {
-      this.loadFileContents(await fs.readTextFile(saveFileFromStorage))
-      this.model.uiState.setSaveFileName(saveFileFromStorage)
-      this.model.document.history.clear();
-    }
-    else {
+    if (
+      saveFileFromStorage !== null &&
+      saveFileFromStorage !== "" &&
+      (await fs.exists(saveFileFromStorage))
+    ) {
+      this.openFile(saveFileFromStorage);
+    } else {
       this.newFile();
     }
   }
@@ -63,12 +83,62 @@ export class DocumentManager {
       document: {
         robotConfig: { identifier: uuidv4() },
         pathlist: {},
+        isRobotProject: false,
+        projectRoot: "",
+        trajDir: "",
       },
     });
     this.model.uiState.setSaveFileName("");
     this.model.document.pathlist.addPath("NewPath");
     this.model.document.history.clear();
   }
+
+  async selectBuildGradle() {
+    var filepath = await dialog.open({
+      title: "Select your project's build.gradle",
+      filters: [
+        {
+          name: "Gradle File",
+          extensions: ["gradle"],
+        },
+      ],
+    });
+    if (Array.isArray(filepath)) {
+      // user selected multiple files
+    } else if (filepath === null) {
+      // user cancelled the selection
+    } else {
+      // user selected a single file
+      console.log(filepath);
+
+      var projectRoot = await path.dirname(filepath);
+      var projectName = await path.basename(projectRoot);
+      var chorFilePath = await path.join(projectRoot, `${projectName}.chor`);
+      var trajdir = await path.join(
+        projectRoot,
+        "src",
+        "main",
+        "deploy",
+        "choreo"
+      );
+      // save the chor file
+      this.model.uiState.setSaveFileName(chorFilePath);
+      this.model.document.setIsRobotProject(true);
+      this.model.document.setProjectRoot(projectRoot);
+      await this.saveFile();
+      await this.openFile(chorFilePath);
+      console.log(this.model.document.pathlist.paths);
+      for (let uuid of this.model.document.pathlist.paths.keys()) {
+        console.log(uuid);
+        var trajpath = await path.join(
+          trajdir,
+          `${this.model.document.pathlist.paths.get(uuid)?.name}.traj`
+        );
+        await this.exportTrajectory(uuid, trajpath);
+      }
+    }
+  }
+
   async parseFile(file: File | null): Promise<string> {
     if (file == null) {
       return Promise.reject("Tried to upload a null file");
@@ -86,55 +156,70 @@ export class DocumentManager {
       fileReader.readAsText(file);
     });
   }
-  async onFileUpload(file: File | null) {
-    await this.parseFile(file)
-      .then((content) => {this.loadFileContents(content)})
-      .catch((err) => console.log(err));
-  }
 
-  async openFile() {
-    var file = await dialog.open({
-      title: "Save Document",
-      multiple: false,
-      filters: [
-        {
-          name: "Trajopt Document",
-          extensions: ["chor"],
-        },
-      ],
-    });
-    if (file===null) return;
-    if (Array.isArray(file)) {
-      file = file[0];
+  async openFile(file?: string) {
+    if (file === undefined) {
+      var selectedFile = await dialog.open({
+        title: "Save Document",
+        multiple: false,
+        filters: [
+          {
+            name: "Trajopt Document",
+            extensions: ["chor"],
+          },
+        ],
+      });
+      if (selectedFile === null) return;
+      if (Array.isArray(selectedFile)) {
+        selectedFile = selectedFile[0];
+      }
+      file = selectedFile;
     }
-    this.model.uiState.setSaveFileName(file)
-    this.loadFileContents(await fs.readTextFile(file))
-    
+    console.log("Opening", file);
+
+    this.model.uiState.setSaveFileName(file);
+    var projectRoot = await path.dirname(file);
+
+    this.loadFileContents(await fs.readTextFile(file));
+    this.model.document.setProjectRoot(projectRoot);
+    if (this.model.document.isRobotProject) {
+      await invoke("expand_fs_scope", { path: projectRoot, isFile: false });
+    }
+    this.model.document.history.clear();
+    console.log(this.model.document.projectRoot);
   }
 
-  async exportTrajectory(uuid: string) {
-    const path = this.model.document.pathlist.paths.get(uuid);
-    if (path === undefined) {
+  async exportTrajectory(uuid: string, filePath?: string | null) {
+    const toExport = this.model.document.pathlist.paths.get(uuid);
+    if (toExport === undefined) {
       console.error("Tried to export trajectory with unknown uuid: ", uuid);
       return;
     }
-    const trajectory = path.getSavedTrajectory();
+    const trajectory = toExport.getSavedTrajectory();
     if (trajectory === null) {
       console.error("Tried to export ungenerated trajectory: ", uuid);
       return;
     }
     const content = JSON.stringify(trajectory, undefined, 4);
-    const filePath = await dialog.save({
-      title: "Export Trajectory",
-      defaultPath: `${path.name}.traj`,
-      filters: [
-        {
-          name: "Trajopt Trajectory",
-          extensions: ["traj"],
-        },
-      ],
-    });
+    if (filePath === undefined) {
+      filePath = await dialog.save({
+        title: "Export Trajectory",
+        defaultPath: `${toExport.name}.traj`,
+        filters: [
+          {
+            name: "Trajopt Trajectory",
+            extensions: ["traj"],
+          },
+        ],
+      });
+    }
+
     if (filePath) {
+      var dirname = await path.dirname(filePath);
+      console.log(dirname);
+      if (!(await fs.exists(dirname))) {
+        await fs.createDir(dirname);
+      }
       await fs.writeTextFile(filePath, content);
     }
   }
@@ -156,11 +241,11 @@ export class DocumentManager {
 
   async saveFile() {
     const content = JSON.stringify(this.model.asSavedDocument(), undefined, 4);
-    if (!VERSIONS["v0.1"].validate(this.model.asSavedDocument())) {
+    if (!VERSIONS[SAVE_FILE_VERSION].validate(this.model.asSavedDocument())) {
       console.warn("Invalid Doc JSON:\n" + "\n" + content);
       return;
     }
-    var  filePath : string | null;
+    var filePath: string | null;
     if (this.model.uiState.saveFileName !== "") {
       filePath = this.model.uiState.saveFileName;
     } else {
@@ -176,8 +261,15 @@ export class DocumentManager {
     }
 
     if (filePath) {
+      this.model.uiState.setSaving(true);
       this.model.uiState.setSaveFileName(filePath);
+      var dirname = await path.dirname(filePath);
+      console.log(dirname);
+      if (!(await fs.exists(dirname))) {
+        await fs.createDir(dirname);
+      }
       await fs.writeTextFile(filePath, content);
+      this.model.uiState.setSaving(false);
     }
   }
 

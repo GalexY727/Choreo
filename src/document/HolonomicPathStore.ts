@@ -22,6 +22,7 @@ import {
   WaypointScope,
 } from "./ConstraintStore";
 import { SavedWaypointId } from "./previousSpecs/v0_1";
+import { path } from "@tauri-apps/api";
 
 export const HolonomicPathStore = types
   .model("HolonomicPathStore", {
@@ -29,7 +30,7 @@ export const HolonomicPathStore = types
     uuid: types.identifier,
     waypoints: types.array(HolonomicWaypointStore),
     constraints: types.array(types.union(...Object.values(ConstraintStores))),
-    generated: types.array(TrajectorySampleStore),
+    generated: types.frozen<SavedTrajectorySample[]>([]),
     generating: false,
   })
   .views((self) => {
@@ -53,9 +54,7 @@ export const HolonomicPathStore = types
       getSavedTrajectory(): Array<SavedTrajectorySample> | null {
         let trajectory = null;
         if (self.generated.length >= 2) {
-          trajectory = self.generated.map((point) =>
-            point.asSavedTrajectorySample()
-          );
+          trajectory = self.generated;
         }
         return trajectory;
       },
@@ -79,9 +78,7 @@ export const HolonomicPathStore = types
       asSavedPath(): SavedPath {
         let trajectory: Array<SavedTrajectorySample> | null = null;
         if (self.generated.length >= 2) {
-          trajectory = self.generated.map((point) =>
-            point.asSavedTrajectorySample()
-          );
+          trajectory = self.generated;
         }
         // constraints are converted here because of the need to search the path for uuids
         return {
@@ -125,6 +122,14 @@ export const HolonomicPathStore = types
   })
   .views((self) => {
     return {
+      trajFile(): string {
+        const root = getRoot<IStateStore>(self);
+        if (root.document.isRobotProject) {
+          return `${root.document.trajDir}${path.sep}${self.name}.traj`;
+        } else {
+          return "";
+        }
+      },
       waypointTimestamps(): number[] {
         let wptTimes: number[] = [];
         if (self.generated.length >= 40) {
@@ -187,9 +192,8 @@ export const HolonomicPathStore = types
         self.name = name;
       },
       selectOnly(selectedIndex: number) {
-        self.waypoints.forEach((point, index) => {
-          point.setSelected(selectedIndex == index);
-        });
+        const root = getRoot<IStateStore>(self);
+        root.select(self.waypoints[selectedIndex]);
       },
       addWaypoint(): IHolonomicWaypointStore {
         self.waypoints.push(HolonomicWaypointStore.create({ uuid: uuidv4() }));
@@ -299,16 +303,11 @@ export const HolonomicPathStore = types
             );
           }
         });
-        self.generated.clear();
         if (
           savedPath.trajectory !== undefined &&
           savedPath.trajectory !== null
         ) {
-          savedPath.trajectory.forEach((savedSample, index) => {
-            let sample = TrajectorySampleStore.create();
-            sample.fromSavedTrajectorySample(savedSample);
-            self.generated.push(sample);
-          });
+          self.generated = savedPath.trajectory;
         }
       },
     };
