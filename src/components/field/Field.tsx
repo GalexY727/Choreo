@@ -14,6 +14,7 @@ import { IHolonomicWaypointStore } from "../../document/HolonomicWaypointStore";
 import VisibilityPanel from "../config/VisibilityPanel";
 import ConstraintsConfigPanel from "../config/ConstraintsConfigPanel";
 import { IConstraintStore } from "../../document/ConstraintStore";
+import { Close } from "@mui/icons-material";
 
 type Props = {};
 
@@ -60,9 +61,11 @@ export class Field extends Component<Props, State> {
         <Tooltip
           placement="top-start"
           title={
-            activePath.canGenerate() || activePath.generating
+            activePath.generating ? "Cancel Generation" : (
+            activePath.canGenerate()
               ? "Generate Path"
               : "Generate Path (needs 2 waypoints)"
+            )
           }
         >
           <Box
@@ -74,6 +77,34 @@ export class Field extends Component<Props, State> {
               height: 48,
             }}
           >
+            {/* cancel button */}
+              <IconButton
+              color="error"
+              aria-label="add"
+              size="large"
+              style={{ pointerEvents: "all" }}
+              sx={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                width: "100%",
+                height: "100%",
+                transformOrigin: "100% 100%",
+                transform: "scale(1.3)",
+                borderRadius: "50%",
+                boxShadow: "3px",
+                marginInline: 0,
+                zIndex: activePath.generating? 10: -1
+              }}
+              onClick={() => {
+                this.context.model.cancelGeneration(activePath.uuid);
+                
+
+              }}
+              disabled={activePath.canGenerate()}
+            >
+              <Close> </Close>
+            </IconButton>
             <IconButton
               color="primary"
               aria-label="add"
@@ -90,6 +121,8 @@ export class Field extends Component<Props, State> {
                 borderRadius: "50%",
                 boxShadow: "3px",
                 marginInline: 0,
+                zIndex:1,
+                visibility:activePath.canGenerate() ? "visible" : "hidden"
               }}
               onClick={() => {
                 this.context.model.generatePath(activePathUUID);
@@ -108,6 +141,7 @@ export class Field extends Component<Props, State> {
               position: "absolute",
               bottom: 16,
               right: 16,
+              zIndex:3
             }}
           />
         )}

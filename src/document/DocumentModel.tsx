@@ -16,6 +16,7 @@ import { IHolonomicPathStore } from "./HolonomicPathStore";
 import { toJS } from "mobx";
 import { type } from "os";
 import { path } from "@tauri-apps/api";
+import { getCurrent } from "@tauri-apps/api/window";
 
 export const DocumentStore = types
   .model("DocumentStore", {
@@ -97,13 +98,16 @@ const StateStore = types
           self.uiState.setSelectedSidebarItem(item);
         })
       },
+      cancelGeneration(name: string) {
+        getCurrent().emit(`cancel-${name}`);
+      },
       generatePath(uuid: string) {
         const pathStore = self.document.pathlist.paths.get(uuid);
         if (pathStore === undefined) {
           return;
         }
         new Promise((resolve, reject) => {
-          pathStore.setTrajectory([]);
+          //pathStore.setTrajectory([]);
           if (pathStore.waypoints.length < 2) {
             return;
           }
@@ -140,11 +144,11 @@ const StateStore = types
           resolve(pathStore);
         })
           .then(async () => {
-            return invoke("generate_trajectory", {
-              path: pathStore.waypoints,
-              config: self.document.robotConfig,
-              constraints: pathStore.asSolverPath().constraints,
-              filepath: pathStore.trajFile(),
+            return invoke("generate", {
+              filepath: self.uiState.saveFileName,
+              pathName: pathStore.name,
+              output: pathStore.trajFile(),
+              uuid
             });
           })
           .then((rust_traj) => {

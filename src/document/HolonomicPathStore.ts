@@ -22,7 +22,7 @@ import {
   WaypointScope,
 } from "./ConstraintStore";
 import { SavedWaypointId } from "./previousSpecs/v0_1";
-import { path } from "@tauri-apps/api";
+import { fs, path } from "@tauri-apps/api";
 
 export const HolonomicPathStore = types
   .model("HolonomicPathStore", {
@@ -83,7 +83,7 @@ export const HolonomicPathStore = types
         // constraints are converted here because of the need to search the path for uuids
         return {
           waypoints: self.waypoints.map((point) => point.asSavedWaypoint()),
-          trajectory: trajectory,
+          trajectory: null,
           constraints: self.constraints.flatMap((constraint) => {
             let waypointIdToSavedWaypointId = (
               waypointId: IWaypointScope
@@ -105,7 +105,6 @@ export const HolonomicPathStore = types
             );
             if (saved.scope?.includes(-1)) return [];
             return {
-              ...constraint,
               type: constraint.type,
               scope: saved["scope"],
             };
@@ -156,13 +155,13 @@ export const HolonomicPathStore = types
           constraint.scope = constraint.scope.sort(
             (a, b) => (a as number) - (b as number)
           );
-          // avoid zero-length segments by converting them to waypoint constraints.
-          if (
-            constraint.scope.length == 2 &&
-            constraint.scope[0] == constraint.scope[1]
-          ) {
-            constraint.scope.length = 1;
-          }
+          // // avoid zero-length segments by converting them to waypoint constraints.
+          // if (
+          //   constraint.scope.length == 2 &&
+          //   constraint.scope[0] == constraint.scope[1]
+          // ) {
+          //   constraint.scope.length = 1;
+          // }
         });
         return savedPath;
       },
@@ -310,6 +309,17 @@ export const HolonomicPathStore = types
           self.generated = savedPath.trajectory;
         }
       },
+      async loadTrajectory() {
+        const root = getRoot<IStateStore>(self);
+        if (root.document.isRobotProject) {
+          let trajectory = JSON.parse(await fs.readTextFile(self.trajFile()))?.samples;
+          if (Array.isArray(trajectory)) {
+            console.log(trajectory);
+            self.setTrajectory(trajectory);
+          }
+
+        }
+      }
     };
   });
 export interface IHolonomicPathStore

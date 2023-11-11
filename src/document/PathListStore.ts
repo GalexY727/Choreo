@@ -63,16 +63,10 @@ export const PathListStore = types
           waypoints: [],
         });
         path
-          .addConstraint(ConstraintStores.WptZeroVelocity)
+          .addConstraint(ConstraintStores.StopPoint)
           ?.setScope(["first"]);
         path
-          .addConstraint(ConstraintStores.WptZeroVelocity)
-          ?.setScope(["last"]);
-          path
-          .addConstraint(ConstraintStores.ZeroAngularVelocity)
-          ?.setScope(["first"]);
-        path
-          .addConstraint(ConstraintStores.ZeroAngularVelocity)
+          .addConstraint(ConstraintStores.StopPoint)
           ?.setScope(["last"]);
         self.paths.put(path);
         if (self.paths.size === 1 || select) {

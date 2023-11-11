@@ -34,21 +34,21 @@ export class DocumentManager {
         projectRoot: "",
       },
     });
-    window.getCurrent().listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async () => {
-      if (this.model.uiState.saveFileName !== "") {
-        this.saveFile();
-      } else {
-        if (
-          await dialog.ask("Save project?", {
-            title: "Choreo",
-            type: "warning",
-          })
-        ) {
-          this.saveFile();
-        }
-      }
-      window.getCurrent().close();
-    });
+    // window.getCurrent().listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async () => {
+    //   if (this.model.uiState.saveFileName !== "") {
+    //     await this.saveFile();
+    //   } else {
+    //     if (
+    //       await dialog.ask("Save project?", {
+    //         title: "Choreo",
+    //         type: "warning",
+    //       })
+    //     ) {
+    //       await this.saveFile();
+    //     }
+    //   }
+    //   await window.getCurrent().close();
+    // });
     this.loadPriorFile();
 
     reaction(
@@ -184,6 +184,10 @@ export class DocumentManager {
     this.model.document.setProjectRoot(projectRoot);
     if (this.model.document.isRobotProject) {
       await invoke("expand_fs_scope", { path: projectRoot, isFile: false });
+      for (let pathToLoad of this.model.document.pathlist.paths.values()) {
+        await pathToLoad.loadTrajectory();
+      }
+
     }
     this.model.document.history.clear();
     console.log(this.model.document.projectRoot);

@@ -1,0 +1,17 @@
+{
+    "robotConfiguration": {},
+    "waypoints" : [],
+    "constraints": [
+        {
+            "scope": [],
+            "velocityMagnitude"
+        }
+    ]
+}
+
+min<Property> = x => Property > x;
+max<Property> = x => Property > x;
+velocityMagnitude min max =
+velocityDirection 
+heading min max =
+angularVelocity max = 

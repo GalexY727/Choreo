@@ -94,6 +94,15 @@ export const constraints = {
     wptScope: true,
     sgmtScope: false,
   },
+  StopPoint: {
+    name: "Stop Point",
+    shortName: "Stop Point",
+    description: "Zero linear and angular velocity at waypoint",
+    icon: <Dangerous></Dangerous>,
+    properties: {},
+    wptScope: true,
+    sgmtScope: false,
+  },
   MaxVelocity: {
     name: "Max Velocity",
     shortName: "Max Velo",
