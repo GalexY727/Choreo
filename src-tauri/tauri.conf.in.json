@@ -23,7 +23,8 @@
       "dialog": {
         "ask": true,
         "open": true,
-        "save": true
+        "save": true,
+        "confirm": true
       },
       "path": {
         "all": true

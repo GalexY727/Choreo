@@ -46,7 +46,7 @@ export interface SavedDocument {
 }
 export type SavedWaypointId = "first" | "last" | number;
 export interface SavedConstraint {
-  scope: Array<SavedWaypointId>;
+  scope: SavedWaypointId[];
   type: string;
   [key: string]: unknown;
 }

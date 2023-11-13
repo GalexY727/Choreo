@@ -125,6 +125,7 @@ export class DocumentManager {
       this.model.uiState.setSaveFileName(chorFilePath);
       this.model.document.setIsRobotProject(true);
       this.model.document.setProjectRoot(projectRoot);
+      await invoke("expand_fs_scope", { path: projectRoot, isFile: false });
       await this.saveFile();
       await this.openFile(chorFilePath);
       console.log(this.model.document.pathlist.paths);

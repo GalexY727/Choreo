@@ -87,12 +87,9 @@ export const HolonomicPathStore = types
           constraints: self.constraints.flatMap((constraint) => {
             let waypointIdToSavedWaypointId = (
               waypointId: IWaypointScope
-            ): "first" | "last" | number | undefined => {
+            ): "first" | "last" | number | [] => {
               if (typeof waypointId !== "string") {
                 let scopeIndex = self.findUUIDIndex(waypointId.uuid);
-                if (scopeIndex == -1) {
-                  return undefined; // don't try to save this constraint
-                }
                 return scopeIndex;
               } else {
                 return waypointId;
@@ -104,9 +101,10 @@ export const HolonomicPathStore = types
               waypointIdToSavedWaypointId(id)
             );
             if (saved.scope?.includes(-1)) return [];
+            if (saved.scope === undefined) return [];
             return {
               type: constraint.type,
-              scope: saved["scope"],
+              scope: saved.scope,
             };
           }),
         };
@@ -312,13 +310,36 @@ export const HolonomicPathStore = types
       async loadTrajectory() {
         const root = getRoot<IStateStore>(self);
         if (root.document.isRobotProject) {
-          let trajectory = JSON.parse(await fs.readTextFile(self.trajFile()))?.samples;
+          console.log("Trying to load path", self.uuid);
+          let trajectory = JSON.parse(await fs.readTextFile(self.trajFile()));
+          console.log(trajectory);
           if (Array.isArray(trajectory)) {
             console.log(trajectory);
             self.setTrajectory(trajectory);
           }
 
         }
+      },
+      async exportTrajectory() {
+        const trajectory = self.getSavedTrajectory();
+        if (trajectory === null) {
+          console.error("Tried to export ungenerated trajectory: ", self.uuid);
+          return;
+        }
+        const content = JSON.stringify(trajectory, undefined, 4);
+        const trajFile = self.trajFile();
+        if (trajFile.length > 0) {
+          if (trajFile) {
+            var dirname = await path.dirname(trajFile);
+            console.log(dirname);
+            if (!(await fs.exists(dirname))) {
+              await fs.createDir(dirname);
+            }
+            await fs.writeTextFile(trajFile, content);
+            console.log("writing");
+          }
+        }
+
       }
     };
   });

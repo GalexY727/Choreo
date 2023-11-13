@@ -145,10 +145,9 @@ const StateStore = types
         })
           .then(async () => {
             return invoke("generate", {
-              filepath: self.uiState.saveFileName,
-              pathName: pathStore.name,
-              output: pathStore.trajFile(),
-              uuid
+              path: pathStore.waypoints,
+              config: self.document.robotConfig,
+              constraints: pathStore.asSolverPath().constraints
             });
           })
           .then((rust_traj) => {
@@ -163,10 +162,19 @@ const StateStore = types
               newPoint.setVelocityX(samp.velocity_x);
               newPoint.setVelocityY(samp.velocity_y);
               newPoint.setTimestamp(samp.timestamp);
-              newTraj.push(newPoint);
+              newTraj.push({
+                x:samp.x,
+                y:samp.y,
+                heading: samp.heading,
+                angularVelocity:samp.angular_velocity,
+                velocityX: samp.velocity_x,
+                velocityY: samp.velocity_y,
+                timestamp: samp.timestamp
+              });
             });
+            console.log(newTraj);
             pathStore.setTrajectory(newTraj);
-          })
+          }).then(()=>pathStore.exportTrajectory())
           .finally(() => {
             pathStore.setGenerating(false);
             self.uiState.setPathAnimationTimestamp(0);

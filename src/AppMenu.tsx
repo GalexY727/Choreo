@@ -65,6 +65,7 @@ class AppMenu extends Component<Props, State> {
             </Tooltip>
             Choreo{" "}
             {this.context.model.document.projectRoot !== "" ? " - Linked" : ""}
+            {this.context.model.document.isRobotProject ? " isProj" : ""}
           </div>
           <List>
             <ListItemButton onClick={() => this.context.openFile()}>

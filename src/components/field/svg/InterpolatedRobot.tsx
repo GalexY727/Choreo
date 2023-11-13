@@ -17,7 +17,7 @@ class InterpolatedRobot extends Component<Props, State> {
   context!: React.ContextType<typeof DocumentManagerContext>;
   state = {};
 
-  storeToPose(store: ITrajectorySampleStore) {
+  storeToPose(store: SavedTrajectorySample) {
     return { x: store.x, y: store.y, rot: store.heading };
   }
   interpolate(p1: Pose, p2: Pose, frac: number) {
@@ -55,7 +55,6 @@ class InterpolatedRobot extends Component<Props, State> {
 
     while (low !== high) {
       let mid = Math.floor((low + high) / 2);
-      console.log(m_states, mid, low, high);
       if (m_states[mid].timestamp < timeSeconds) {
         // This index and everything under it are less than the requested
         // timestamp. Therefore, we can discard them.
@@ -97,6 +96,7 @@ class InterpolatedRobot extends Component<Props, State> {
       this.props.timestamp,
       this.context.model.document.pathlist.activePath.generated
     );
+    console.log(this.context.model.document.pathlist.activePath.generated)
     return (
       <g
         transform={`translate(${pose1.x}, ${pose1.y}) rotate(${

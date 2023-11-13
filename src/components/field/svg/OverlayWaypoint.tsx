@@ -122,8 +122,9 @@ class OverlayWaypoint extends Component<Props, State> {
     //d3.select(`#group`).attr('transform', `rotate(${ this.r.angle })`)
   }
   selectWaypoint() {
-    this.context.model.uiState.setSelectedSidebarItem(this.props.waypoint);
-    this.context.model.uiState.setSelectedNavbarItem(this.props.waypoint.type);
+    this.context.model.document.pathlist.activePath.selectOnly(
+      this.props.index
+    );
   }
   componentDidMount() {
     if (this.rootRef.current) {
