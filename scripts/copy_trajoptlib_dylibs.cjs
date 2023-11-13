@@ -45,4 +45,4 @@ if (process.platform === "win32") {
 }
 
 console.log("Cargo clean");
-execSync("cd " + bu.getSrcTauriPath() + " && cargo clean");
+execSync("cd " + bu.getSrcTauriPath() + " && rm -rf target");
