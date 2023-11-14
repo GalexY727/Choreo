@@ -96,7 +96,6 @@ class InterpolatedRobot extends Component<Props, State> {
       this.props.timestamp,
       this.context.model.document.pathlist.activePath.generated
     );
-    console.log(this.context.model.document.pathlist.activePath.generated)
     return (
       <g
         transform={`translate(${pose1.x}, ${pose1.y}) rotate(${

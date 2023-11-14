@@ -313,9 +313,9 @@ export const HolonomicPathStore = types
           console.log("Trying to load path", self.uuid);
           let trajectory = JSON.parse(await fs.readTextFile(self.trajFile()));
           console.log(trajectory);
-          if (Array.isArray(trajectory)) {
+          if (Array.isArray(trajectory.samples)) {
             console.log(trajectory);
-            self.setTrajectory(trajectory);
+            self.setTrajectory(trajectory.samples);
           }
 
         }
@@ -326,7 +326,7 @@ export const HolonomicPathStore = types
           console.error("Tried to export ungenerated trajectory: ", self.uuid);
           return;
         }
-        const content = JSON.stringify(trajectory, undefined, 4);
+        const content = JSON.stringify({samples: trajectory}, undefined, 4);
         const trajFile = self.trajFile();
         if (trajFile.length > 0) {
           if (trajFile) {

@@ -205,7 +205,7 @@ export class DocumentManager {
       console.error("Tried to export ungenerated trajectory: ", uuid);
       return;
     }
-    const content = JSON.stringify(trajectory, undefined, 4);
+    const content = JSON.stringify({samples: trajectory}, undefined, 4);
     if (filePath === undefined) {
       filePath = await dialog.save({
         title: "Export Trajectory",
