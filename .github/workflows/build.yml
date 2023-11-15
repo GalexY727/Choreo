@@ -45,7 +45,7 @@ jobs:
         run: "rustup target install aarch64-apple-darwin;mkdir -p .cargo;touch .cargo/config.toml;echo \"[build]\ntarget = \\\"aarch64-apple-darwin\\\"\" > .cargo/config.toml"
 
       - name: Set up Clang
-        if: matrix.os != 'macOS-12'
+        if: matrix.os != 'macOS-12' && matrix.os != 'windows-2022'
         uses: egor-tensin/setup-clang@v1
         with:
           version: latest
