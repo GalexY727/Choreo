@@ -17,6 +17,9 @@ import { toJS } from "mobx";
 import { type } from "os";
 import { path } from "@tauri-apps/api";
 import { getCurrent } from "@tauri-apps/api/window";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.min.css";
+import { Box } from "@mui/material";
 
 export const DocumentStore = types
   .model("DocumentStore", {
@@ -101,42 +104,43 @@ const StateStore = types
       cancelGeneration(name: string) {
         getCurrent().emit(`cancel-${name}`);
       },
-      generatePath(uuid: string) {
+      async generatePath(uuid: string) {
         const pathStore = self.document.pathlist.paths.get(uuid);
         if (pathStore === undefined) {
-          return;
+          return new Promise((resolve, reject) =>
+            reject("Path store is undefined")
+          );
         }
-        new Promise((resolve, reject) => {
-          //pathStore.setTrajectory([]);
+        return new Promise((resolve, reject) => {
+          const controlIntervalOptResult =
+            pathStore.optimizeControlIntervalCounts(self.document.robotConfig);
+          if (controlIntervalOptResult !== undefined) {
+            return new Promise((resolve, reject) =>
+              reject(controlIntervalOptResult)
+            );
+          }
+          pathStore.setTrajectory([]);
           if (pathStore.waypoints.length < 2) {
             return;
           }
           pathStore.constraints.forEach((constraint) => {
             if (constraint.issues.length > 0) {
-              throw new Error(constraint.issues.join(", "));
+              reject(constraint.issues.join(", "));
             }
           });
           pathStore.waypoints.forEach((wpt, idx) => {
             if (wpt.isInitialGuess) {
               if (idx == 0) {
-                throw new Error(
-                  "Cannot start a path with an initial guess point."
-                );
+                reject("Cannot start a path with an initial guess point.");
               } else if (idx == pathStore.waypoints.length - 1) {
-                throw new Error(
-                  "Cannot end a path with an initial guess point."
-                );
+                reject("Cannot end a path with an initial guess point.");
               }
             }
             if (wpt.isInitialGuess) {
               if (idx == 0) {
-                throw new Error(
-                  "Cannot start a path with an initial guess point."
-                );
+                reject("Cannot start a path with an initial guess point.");
               } else if (idx == pathStore.waypoints.length - 1) {
-                throw new Error(
-                  "Cannot end a path with an initial guess point."
-                );
+                reject("Cannot end a path with an initial guess point.");
               }
             }
           });
@@ -154,14 +158,6 @@ const StateStore = types
             let newTraj: Array<SavedTrajectorySample> = [];
             // @ts-ignore
             rust_traj.samples.forEach((samp) => {
-              let newPoint = TrajectorySampleStore.create();
-              newPoint.setX(samp.x);
-              newPoint.setY(samp.y);
-              newPoint.setHeading(samp.heading);
-              newPoint.setAngularVelocity(samp.angular_velocity);
-              newPoint.setVelocityX(samp.velocity_x);
-              newPoint.setVelocityY(samp.velocity_y);
-              newPoint.setTimestamp(samp.timestamp);
               newTraj.push({
                 x:samp.x,
                 y:samp.y,
@@ -174,6 +170,17 @@ const StateStore = types
             });
             console.log(newTraj);
             pathStore.setTrajectory(newTraj);
+            if (newTraj.length == 0) throw "No Trajectory Returned";
+          },
+          (e) => {
+            console.error(e);
+            if ((e as string).includes("Infeasible_Problem_Detected")) {
+              throw "Infeasible Problem Detected";
+            }
+            if ((e as string).includes("Maximum_Iterations_Exceeded")) {
+              throw "Maximum Iterations Exceeded";
+            }
+            throw e;
           }).then(()=>pathStore.exportTrajectory())
           .finally(() => {
             pathStore.setGenerating(false);

@@ -1,5 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use trajoptlib::{SwervePathBuilder, HolonomicTrajectory, SwerveDrivetrain, SwerveModule, InitialGuessPoint};
 use tauri::{api::file, Manager};
@@ -31,14 +31,16 @@ use crate::document::{
 };
 
 
-fn fix_scope(wpt_id: usize, removed_idxs: &Vec<usize>) -> usize {
-    let mut to_subtract: usize = 0;
-    for removed in removed_idxs {
-        if *removed < wpt_id {
-            to_subtract += 1;
-        }
-    }
-    return wpt_id - to_subtract;
+#[allow(non_snake_case)]
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ChoreoWaypoint {
+    x: f64,
+    y: f64,
+    heading: f64,
+    isInitialGuess: bool,
+    translationConstrained: bool,
+    headingConstrained: bool,
+    controlIntervalCount: usize,
 }
 
 #[tauri::command]
@@ -157,15 +159,21 @@ fn parse_constraints_scope(
 }
 
 #[tauri::command]
+async fn cancel() {
+  let mut builder = SwervePathBuilder::new();
+  builder.cancel_all();
+}
+
+#[tauri::command]
 async fn generate(
     path: Vec<ChoreoWaypoint>,
     config: ChoreoRobotConfig,
     constraints: Vec<Constraints>
 ) -> Result<HolonomicTrajectory, String> {
     let mut path_builder = SwervePathBuilder::new();
-    let mut total_pnts: usize = 0;
-    let mut wpt_cnt: usize = 0;
-    let mut rm: Vec<usize> = Vec::new();
+    let mut wpt_cnt : usize = 0;
+    let mut rm : Vec<usize> = Vec::new();
+    let mut control_interval_counts: Vec<usize> = Vec::new();
     for i in 0..path.len() {
         let wpt: &ChoreoWaypoint = &path[i];
         if wpt.isInitialGuess {
@@ -186,9 +194,13 @@ async fn generate(
             path_builder.empty_wpt(wpt_cnt, wpt.x, wpt.y, wpt.heading);
             wpt_cnt += 1;
         }
-        total_pnts += 1;
+
+        if i != path.len() - 1 {
+          control_interval_counts.push(wpt.controlIntervalCount);
+        }
     }
-    // fix the scopes
+
+    path_builder.set_control_interval_counts(control_interval_counts);
 
     for c in 0..constraints.len() {
         let constraint: &Constraints = &constraints[c];
@@ -341,8 +353,7 @@ async fn generate(
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_persisted_scope::init())
-        .invoke_handler(tauri::generate_handler![generate, expand_fs_scope])
+        .invoke_handler(tauri::generate_handler![generate_trajectory, cancel, expand_fs_scope])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

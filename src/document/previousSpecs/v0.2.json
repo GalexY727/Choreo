@@ -114,6 +114,12 @@
                 }
               }
             },
+            "usesControlIntervalGuessing": {
+              "type": "boolean"
+            },
+            "defaultControlIntervalCount": {
+              "type": "integer"
+            },
             "required": ["waypoints", "generatedTrajectory", "constraints"]
           }
         }

@@ -14,6 +14,9 @@ import { IHolonomicWaypointStore } from "../../document/HolonomicWaypointStore";
 import VisibilityPanel from "../config/VisibilityPanel";
 import ConstraintsConfigPanel from "../config/ConstraintsConfigPanel";
 import { IConstraintStore } from "../../document/ConstraintStore";
+import "react-toastify/dist/ReactToastify.min.css";
+import { ToastContainer, toast } from "react-toastify";
+import { invoke } from "@tauri-apps/api";
 import { Close } from "@mui/icons-material";
 
 type Props = {};
@@ -31,6 +34,17 @@ export class Field extends Component<Props, State> {
     let activePathUUID = this.context.model.document.pathlist.activePathUUID;
     return (
       <div className={styles.Container}>
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          draggable
+          theme="dark"
+          enableMultiContainer
+          containerId={"FIELD"}
+        ></ToastContainer>
         <FieldOverlayRoot></FieldOverlayRoot>
         {selectedSidebar !== undefined &&
           "heading" in selectedSidebar &&
@@ -59,13 +73,15 @@ export class Field extends Component<Props, State> {
         )}
         <VisibilityPanel></VisibilityPanel>
         <Tooltip
+          disableInteractive
           placement="top-start"
           title={
-            activePath.generating ? "Cancel Generation" : (
-            activePath.canGenerate()
+            activePath.generating
+              ? "Cancel All (Ctrl-click)"
+              : activePath.canGenerate()
               ? "Generate Path"
               : "Generate Path (needs 2 waypoints)"
-            )
+            
           }
         >
           <Box
@@ -78,8 +94,7 @@ export class Field extends Component<Props, State> {
             }}
           >
             {/* cancel button */}
-              <IconButton
-              color="error"
+            <IconButton
               aria-label="add"
               size="large"
               style={{ pointerEvents: "all" }}
@@ -94,12 +109,16 @@ export class Field extends Component<Props, State> {
                 borderRadius: "50%",
                 boxShadow: "3px",
                 marginInline: 0,
-                zIndex: activePath.generating? 10: -1
+                zIndex: activePath.generating ? 10 : -1,
+                backgroundColor: "red",
+                "&:hover": {
+                  backgroundColor: "darkred",
+                },
               }}
-              onClick={() => {
-                this.context.model.cancelGeneration(activePath.uuid);
-                
-
+              onClick={(event) => {
+                if (event.ctrlKey) {
+                  invoke("cancel");
+                }
               }}
               disabled={activePath.canGenerate()}
             >
@@ -121,11 +140,31 @@ export class Field extends Component<Props, State> {
                 borderRadius: "50%",
                 boxShadow: "3px",
                 marginInline: 0,
-                zIndex:1,
-                visibility:activePath.canGenerate() ? "visible" : "hidden"
+                visibility: activePath.canGenerate() ? "visible" : "hidden",
               }}
               onClick={() => {
-                this.context.model.generatePath(activePathUUID);
+                let pathName = activePath.name;
+                toast.dismiss();
+                toast.promise(
+                  this.context.model.generatePath(activePathUUID),
+                  {
+                    success: `Generated \"${pathName}\"`,
+                    error: {
+                      render({ data }) {
+                        console.log(data);
+                        if ((data as string).includes("User_Requested_Stop")) {
+                          return `Cancelled \"${pathName}\"`;
+                        }
+                        return (
+                          `Can't generate \"${pathName}\": ` + (data as string)
+                        );
+                      },
+                    },
+                  },
+                  {
+                    containerId: "FIELD",
+                  }
+                );
               }}
               disabled={!activePath.canGenerate()}
             >

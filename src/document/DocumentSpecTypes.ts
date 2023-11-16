@@ -32,6 +32,16 @@ import {
 } from "./previousSpecs/v0_1";
 import v0_1_Schema from "./previousSpecs/v0.1.json";
 import {
+  SavedDocument as v0_1_1,
+  SavedPath as v0_1_1_Path,
+  SavedWaypoint as v0_1_1_Waypoint,
+  SavedTrajectorySample as v0_1_1_Sample,
+  SavedPathList as v0_1_1_Pathlist,
+  SavedRobotConfig as v0_1_1_Config,
+  SAVE_FILE_VERSION as v0_1_1_Version,
+} from "./previousSpecs/v0_1_1";
+import v0_1_1_Schema from "./previousSpecs/v0.1.1.json";
+import {
   SavedDocument as v0_2,
   SavedPath as v0_2_Path,
   SavedWaypoint as v0_2_Waypoint,
@@ -117,6 +127,32 @@ export let VERSIONS = {
     },
   },
   "v0.1": {
+    up: (document: any): v0_1_1 => {
+      document = document as v0_1;
+      let updated: v0_1_1 = {
+        paths: {},
+        version: v0_1_1_Version,
+        robotConfiguration: document.robotConfiguration,
+      };
+      for (let entry of Object.keys(document.paths)) {
+        let path = document.paths[entry];
+        updated.paths[entry] = {
+          waypoints: path.waypoints,
+          trajectory: path.trajectory,
+          constraints: path.constraints,
+          usesControlIntervalGuessing: true,
+          defaultControlIntervalCount: 40,
+        };
+      }
+      return updated;
+    },
+
+    validate: (document: v0_1): boolean => {
+      const ajv = new Ajv();
+      return ajv.validate(v0_1_Schema, document);
+    },
+  },
+  "v0.1.1": {
     up: (document: any): v0_2 => {
       return {
         isRobotProject: false,
@@ -124,9 +160,9 @@ export let VERSIONS = {
         version: v0_2_Version,
       } as v0_2;
     },
-    validate: (document: v0_1): boolean => {
+    validate: (document: v0_1_1): boolean => {
       const ajv = new Ajv();
-      return ajv.validate(v0_1_Schema, document);
+      return ajv.validate(v0_1_1_Schema, document);
     },
   },
   "v0.2": {
@@ -136,8 +172,9 @@ export let VERSIONS = {
     validate: (document: v0_2): boolean => {
       const ajv = new Ajv();
       return ajv.validate(v0_2_Schema, document);
-    },
+    }
   },
+
 };
 
 export let updateToCurrent = (document: { version: string }): SavedDocument => {

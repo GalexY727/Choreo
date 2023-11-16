@@ -25,6 +25,8 @@ export interface SavedPath {
   waypoints: Array<SavedWaypoint>;
   trajectory: Array<SavedTrajectorySample> | null;
   constraints: Array<SavedConstraint>;
+  usesControlIntervalGuessing: boolean;
+  defaultControlIntervalCount: number;
 }
 export interface SavedPathList extends Record<string, SavedPath> {}
 export interface SavedRobotConfig {

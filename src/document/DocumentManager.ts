@@ -8,6 +8,9 @@ import { autorun, reaction, toJS } from "mobx";
 import { window, path } from "@tauri-apps/api";
 import { TauriEvent } from "@tauri-apps/api/event";
 import { IHolonomicPathStore } from "./HolonomicPathStore";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.min.css";
+import hotkeys from "hotkeys-js";
 
 export class DocumentManager {
   undo() {
@@ -73,6 +76,135 @@ export class DocumentManager {
     } else {
       this.newFile();
     }
+    this.model.document.pathlist.addPath("NewPath");
+    this.model.document.history.clear();
+    hotkeys("command+g,ctrl+g,g", () => {
+      this.model.generatePath(this.model.document.pathlist.activePathUUID);
+    });
+    hotkeys("command+z,ctrl+z", () => {
+      this.undo();
+    });
+    hotkeys("command+shift+z,ctrl+shift+z,ctrl+y", () => {
+      this.redo();
+    });
+    hotkeys("command+n,ctrl+n", { keydown: true }, () => {
+      this.newFile();
+    });
+    hotkeys("right,x", () => {
+      const waypoints = this.model.document.pathlist.activePath.waypoints;
+      const selected = waypoints.find((w) => {
+        return w.selected;
+      });
+      let i = waypoints.indexOf(selected ?? waypoints[0]);
+      i++;
+      if (i >= waypoints.length) {
+        i = waypoints.length - 1;
+      }
+      this.model.select(waypoints[i]);
+    });
+    hotkeys("left,z", () => {
+      const waypoints = this.model.document.pathlist.activePath.waypoints;
+      const selected = waypoints.find((w) => {
+        return w.selected;
+      });
+      let i = waypoints.indexOf(selected ?? waypoints[0]);
+      i--;
+      if (i <= 0) {
+        i = 0;
+      }
+      this.model.select(waypoints[i]);
+    });
+    // navbar keys
+    for (let i = 0; i < 9; i++) {
+      hotkeys((i + 1).toString(), () => {
+        this.model.uiState.setSelectedNavbarItem(i);
+      });
+    }
+    // set current waypoint type
+    for (let i = 0; i < 4; i++) {
+      hotkeys("shift+" + (i + 1), () => {
+        const selected = this.getSelectedWaypoint();
+        selected?.setType(i);
+      });
+    }
+    // nudge selected waypoint
+    hotkeys("d,shift+d", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected !== undefined) {
+        const delta = hotkeys.shift ? 0.5 : 0.1;
+        selected.setX(selected.x + delta);
+      }
+    });
+    hotkeys("a,shift+a", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected !== undefined) {
+        const delta = hotkeys.shift ? 0.5 : 0.1;
+        selected.setX(selected.x - delta);
+      }
+    });
+    hotkeys("w,shift+w", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected !== undefined) {
+        const delta = hotkeys.shift ? 0.5 : 0.1;
+        selected.setY(selected.y + delta);
+      }
+    });
+    hotkeys("s,shift+s", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected !== undefined) {
+        const delta = hotkeys.shift ? 0.5 : 0.1;
+        selected.setY(selected.y - delta);
+      }
+    });
+    hotkeys("q,shift+q", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected !== undefined) {
+        const delta = hotkeys.shift ? Math.PI / 4 : Math.PI / 16;
+        let newHeading = selected.heading + delta;
+        selected.setHeading(newHeading);
+      }
+    });
+    hotkeys("e,shift+e", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected !== undefined) {
+        const delta = hotkeys.shift ? -Math.PI / 4 : -Math.PI / 16;
+        let newHeading = selected.heading + delta;
+        selected.setHeading(newHeading);
+      }
+    });
+    hotkeys("f", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected) {
+        const newWaypoint =
+          this.model.document.pathlist.activePath.addWaypoint();
+        newWaypoint.setX(selected.x);
+        newWaypoint.setY(selected.y);
+        newWaypoint.setHeading(selected.heading);
+        this.model.select(newWaypoint);
+      } else {
+        const newWaypoint =
+          this.model.document.pathlist.activePath.addWaypoint();
+        newWaypoint.setX(5);
+        newWaypoint.setY(5);
+        newWaypoint.setHeading(0);
+        this.model.select(newWaypoint);
+      }
+    });
+    hotkeys("delete,backspace,clear", () => {
+      const selected = this.getSelectedWaypoint();
+      if (selected) {
+        this.model.document.pathlist.activePath.deleteWaypointUUID(
+          selected.uuid
+        );
+      }
+    });
+  }
+
+  private getSelectedWaypoint() {
+    const waypoints = this.model.document.pathlist.activePath.waypoints;
+    return waypoints.find((w) => {
+      return w.selected;
+    });
   }
   newFile(): void {
     applySnapshot(this.model, {
@@ -193,16 +325,49 @@ export class DocumentManager {
     this.model.document.history.clear();
     console.log(this.model.document.projectRoot);
   }
+  async onFileUpload(file: File | null) {
+    await this.parseFile(file)
+      .then((content) => {
+        const parsed = JSON.parse(content);
+        if (validate(parsed)) {
+          this.model.fromSavedDocument(parsed);
+        } else {
+          console.error("Invalid Document JSON");
+          toast.error(
+            "Could not parse selected document (Is it a choreo document?)",
+            {
+              containerId: "MENU",
+            }
+          );
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        toast.error("File load error: " + err, {
+          containerId: "MENU",
+        });
+      });
+  }
 
   async exportTrajectory(uuid: string, filePath?: string | null) {
     const toExport = this.model.document.pathlist.paths.get(uuid);
     if (toExport === undefined) {
       console.error("Tried to export trajectory with unknown uuid: ", uuid);
+      toast.error("Tried to export trajectory with unknown uuid", {
+        autoClose: 5000,
+        hideProgressBar: false,
+        containerId: "MENU",
+      });
       return;
     }
     const trajectory = toExport.getSavedTrajectory();
     if (trajectory === null) {
       console.error("Tried to export ungenerated trajectory: ", uuid);
+      toast.error("Cannot export ungenerated trajectory", {
+        autoClose: 5000,
+        hideProgressBar: false,
+        containerId: "MENU",
+      });
       return;
     }
     const content = JSON.stringify({samples: trajectory}, undefined, 4);
