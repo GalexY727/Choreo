@@ -52,7 +52,8 @@ export class DocumentManager {
     //   }
     //   await window.getCurrent().close();
     // });
-    this.loadPriorFile();
+    //this.loadPriorFile();
+    this.newFile();
 
     reaction(
       () => this.model.document.history.undoIdx,
@@ -63,21 +64,28 @@ export class DocumentManager {
         }
       }
     );
+
+    this.bindHotkeys();
   }
 
   async loadPriorFile() {
     var saveFileFromStorage = localStorage.getItem("saveFileName");
+    invoke("expand_fs_scope", {path: saveFileFromStorage, isFile: true});
     if (
       saveFileFromStorage !== null &&
       saveFileFromStorage !== "" &&
       (await fs.exists(saveFileFromStorage))
     ) {
+      console.log(saveFileFromStorage);
       this.openFile(saveFileFromStorage);
     } else {
       this.newFile();
     }
     this.model.document.pathlist.addPath("NewPath");
     this.model.document.history.clear();
+  }
+
+  private bindHotkeys() {
     hotkeys("command+g,ctrl+g,g", () => {
       this.model.generatePath(this.model.document.pathlist.activePathUUID);
     });

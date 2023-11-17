@@ -144,11 +144,16 @@ export class Field extends Component<Props, State> {
               }}
               onClick={() => {
                 let pathName = activePath.name;
+                let time = Date.now();
                 toast.dismiss();
                 toast.promise(
                   this.context.model.generatePath(activePathUUID),
                   {
-                    success: `Generated \"${pathName}\"`,
+                    success: {
+                      render({ data }) {
+                        return `Generated \"${pathName}\" in ${((Date.now() - time) / 1000).toFixed(1)} s`;
+                      }
+                    },
                     error: {
                       render({ data }) {
                         console.log(data);

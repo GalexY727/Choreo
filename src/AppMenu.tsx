@@ -17,14 +17,10 @@ import UploadIcon from "@mui/icons-material/UploadFile";
 import IconButton from "@mui/material/IconButton";
 import FileDownload from "@mui/icons-material/FileDownload";
 import Tooltip from "@mui/material/Tooltip";
-<<<<<<< HEAD
-import { NoteAddOutlined } from "@mui/icons-material";
-=======
 import { NoteAddOutlined, Settings } from "@mui/icons-material";
 import { ToastContainer, toast } from "react-toastify";
 import { dialog } from "@tauri-apps/api";
 
->>>>>>> main
 type Props = {};
 
 type State = { settingsOpen: boolean };
@@ -78,9 +74,7 @@ class AppMenu extends Component<Props, State> {
                 <MenuIcon></MenuIcon>
               </IconButton>
             </Tooltip>
-            Choreo{" "}
-            {this.context.model.document.projectRoot !== "" ? " - Linked" : ""}
-            {this.context.model.document.isRobotProject ? " isProj" : ""}
+            {this.context.model.uiState.getProjectFolderName()}
           </div>
           <List>
             <ListItemButton onClick={() => this.context.openFile()}>
@@ -93,7 +87,7 @@ class AppMenu extends Component<Props, State> {
               <ListItemIcon>
                 <UploadIcon />
               </ListItemIcon>
-              <ListItemText primary="Link to Robot Project"></ListItemText>
+              <ListItemText primary="Save to Robot Project"></ListItemText>
             </ListItemButton>
             <ListItemButton
               onClick={() => {

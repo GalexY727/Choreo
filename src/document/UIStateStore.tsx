@@ -93,7 +93,7 @@ let navbarIndexToConstraintDefinition: { [key: number]: ConstraintDefinition } =
   Object.entries(constraints).forEach(([key, data], index) => {
     NavbarData[key] = {
       index: constraintsOffset,
-      name: data.name,
+      name: `${data.name}: ${data.description}`,
       icon: data.icon,
     };
     navbarIndexToConstraint[constraintsOffset] = ConstraintStores[key];
@@ -184,7 +184,7 @@ export const UIStateStore = types
     saveFileName: types.optional(types.string, ""),
     waypointPanelOpen: false,
     visibilityPanelOpen: false,
-    mainMenuOpen: false,
+    mainMenuOpen: true,
     pathAnimationTimestamp: 0,
     layers: types.array(types.boolean),
     selectedSidebarItem: types.maybe(types.safeReference(SelectableItem)),
@@ -193,6 +193,20 @@ export const UIStateStore = types
   })
   .views((self: any) => {
     return {
+      getProjectFolderName() {
+        if (self.saveFileName === undefined) {
+          return "";
+        }
+        if (self.saveFileName.includes("/")) {
+          let path = self.saveFileName.split("/");
+          return path[path.length - 1];
+        }
+        if (self.saveFileName.includes("\\")) {
+          let path = self.saveFileName.split("\\");
+          return path[path.length - 2];
+        }
+        return "";
+      },
       getSelectedConstraint() {
         return navbarIndexToConstraint[self.selectedNavbarItem] ?? undefined;
       },

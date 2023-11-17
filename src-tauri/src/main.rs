@@ -18,30 +18,6 @@ use tauri::{api::file, Manager};
 //       }
 //   };
 // }
-mod document;
-use crate::document::{
-  ChoreoConstraintScope,
-  ChoreoDocument,
-  ChoreoPath,
-  ChoreoRobotConfig,
-  ChoreoWaypoint,
-  ChoreoWaypointId,
-  Constraints,
-  wpt_id_to_idx
-};
-
-
-#[allow(non_snake_case)]
-#[derive(serde::Serialize, serde::Deserialize)]
-struct ChoreoWaypoint {
-    x: f64,
-    y: f64,
-    heading: f64,
-    isInitialGuess: bool,
-    translationConstrained: bool,
-    headingConstrained: bool,
-    controlIntervalCount: usize,
-}
 
 #[tauri::command]
 async fn expand_fs_scope(
@@ -60,102 +36,69 @@ async fn expand_fs_scope(
     Ok(())
 }
 
-// #[tauri::command]
-// async fn generate(
-//     app_handle: tauri::AppHandle,
-//     filepath: &str,
-//     path_name: &str,
-//     output: &str,
-//     uuid: &str,
-// ) -> Result<HolonomicTrajectory, String> {
-//     let moved_filepath = filepath.to_owned();
-//     let moved_path_name = path_name.to_owned();
-//     let moved_output = output.to_owned();
-
-//     let current_exe = std::env::current_exe();
-//     if (current_exe.is_ok()) {
-//         let mut handle = Command::new(current_exe.unwrap())
-//             .arg("--chor")
-//             .arg(filepath)
-//             .arg("--path")
-//             .arg(path_name)
-//             .arg("--output")
-//             .arg(output)
-//             .spawn()
-//             .unwrap();
-
-//         let (send, recv) = channel::<()>();
-//         let event_listener = app_handle.once_global(String::from("cancel-") + uuid, move |_| {
-//             println!("I saw that");
-//             send.send(());
-//         });
-//         tokio::select! {
-//             _ = recv => {
-//               handle.kill().expect("kill failed")}
-//             _ = async {
-//             while handle.try_wait().is_ok_and(|option| {option.is_none()}) {
-//               sleep(Duration::from_millis(200)).await;
-//             }} => {}
-
-//         }
-//         app_handle.unlisten(event_listener);
-//         // let mut out = handle.stdout.take().expect("No stdout on child");
-//         // let raw_handle = handle.as_;
-
-//         // let buf = &mut [0; 1];
-//         // loop {
-//         //   let contents_opt = out.read_exact(buf);
-//         //   if (contents_opt.is_err()) {break;}
-//         //   // stdout().write_all(buf);
-//         // }
-//         let result: HolonomicTrajectory = serde_json::from_str::<HolonomicTrajectory>(
-//             fs::read_to_string(Path::new(output)).unwrap().as_str(),
-//         )
-//         .unwrap();
-//         // serde_json::from_str::<Vec<HolonomicTrajectorySample>>(
-//         //   file::read_string(Path::new(String::from(output))).unwrap_or("".to_string())
-//         // ).unwrap_or(Vec!());
-
-//         Ok(result)
-//     } else {
-//         Err(String::from("could not start child process"))
-//     }
-// }
-
-struct ParsedConstraintScope {
-    start: usize,
-    end: usize,
-    segment: bool,
+#[allow(non_snake_case)]
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ChoreoWaypoint {
+    x: f64,
+    y: f64,
+    heading: f64,
+    isInitialGuess: bool,
+    translationConstrained: bool,
+    headingConstrained: bool,
+    controlIntervalCount: usize,
 }
 
-fn parse_constraints_scope(
-    scope: &ChoreoConstraintScope,
-    total_pnts: usize,
-    rm: &Vec<usize>
-) -> ParsedConstraintScope {
-    let mut start: usize = 0;
-    let mut end: usize = 0;
-    let mut segment = false;
-    match scope {
-        ChoreoConstraintScope::Waypoint(idx) => start = wpt_id_to_idx(&idx[0], total_pnts),
-        ChoreoConstraintScope::Segment(idx) => {
-            start = fix_scope(wpt_id_to_idx(&idx[0], total_pnts), rm);
-            end = fix_scope(wpt_id_to_idx(&idx[1], total_pnts), rm);
-            if start != end {
-                segment = true;
-                if (start > end) {
-                    let tmp = start;
-                    start = end;
-                    end = tmp;
-                }
-            }
-        }
-    };
-    return ParsedConstraintScope {
-        start,
-        end,
-        segment,
-    };
+#[allow(non_snake_case)]
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ChoreoRobotConfig {
+  mass: f64,
+  rotationalInertia: f64,
+  wheelMaxVelocity: f64,
+  wheelMaxTorque: f64,
+  wheelRadius: f64,
+  bumperWidth: f64,
+  bumperLength: f64,
+  wheelbase: f64,
+  trackWidth: f64
+}
+
+#[allow(non_snake_case)]
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ChoreoSegmentScope {
+  start: usize, end:usize
+}
+
+#[allow(non_snake_case)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum ChoreoConstraintScope {
+  
+  Segment([usize;2]),
+  Waypoint([usize;1])
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag="type")]
+// Add constraint type, scope, and properties
+enum Constraints {
+  WptVelocityDirection{scope: ChoreoConstraintScope, direction:f64},
+  WptZeroVelocity{scope: ChoreoConstraintScope},
+  MaxVelocity{scope: ChoreoConstraintScope, velocity:f64},
+  ZeroAngularVelocity{scope: ChoreoConstraintScope},
+  StraightLine{scope:ChoreoConstraintScope},
+  StopPoint{scope:ChoreoConstraintScope}
+}
+// Also add the constraint type here
+//define_enum_macro!(BoundsZeroVelocity, WptVelocityDirection, WptZeroVelocity);
+
+fn fix_scope(idx: usize, removed_idxs: &Vec<usize>) -> usize {
+  let mut to_subtract: usize = 0;
+  for removed in removed_idxs {
+      if *removed < idx {
+        to_subtract += 1;
+      }
+  }
+  return idx-to_subtract;
 }
 
 #[tauri::command]
@@ -165,11 +108,8 @@ async fn cancel() {
 }
 
 #[tauri::command]
-async fn generate(
-    path: Vec<ChoreoWaypoint>,
-    config: ChoreoRobotConfig,
-    constraints: Vec<Constraints>
-) -> Result<HolonomicTrajectory, String> {
+async fn generate(path: Vec<ChoreoWaypoint>, config: ChoreoRobotConfig, constraints: Vec<Constraints>) -> Result<HolonomicTrajectory, String> {
+
     let mut path_builder = SwervePathBuilder::new();
     let mut wpt_cnt : usize = 0;
     let mut rm : Vec<usize> = Vec::new();
@@ -177,22 +117,18 @@ async fn generate(
     for i in 0..path.len() {
         let wpt: &ChoreoWaypoint = &path[i];
         if wpt.isInitialGuess {
-            let guess_point: InitialGuessPoint = InitialGuessPoint {
-                x: wpt.x,
-                y: wpt.y,
-                heading: wpt.heading,
-            };
+            let guess_point: InitialGuessPoint = InitialGuessPoint {x: wpt.x, y: wpt.y, heading: wpt.heading};
             path_builder.sgmt_initial_guess_points(wpt_cnt, &vec![guess_point]);
             rm.push(i)
         } else if wpt.headingConstrained && wpt.translationConstrained {
             path_builder.pose_wpt(wpt_cnt, wpt.x, wpt.y, wpt.heading);
-            wpt_cnt += 1;
+            wpt_cnt+=1;
         } else if wpt.translationConstrained {
             path_builder.translation_wpt(wpt_cnt, wpt.x, wpt.y, wpt.heading);
-            wpt_cnt += 1;
+            wpt_cnt+=1;
         } else {
-            path_builder.empty_wpt(wpt_cnt, wpt.x, wpt.y, wpt.heading);
-            wpt_cnt += 1;
+          path_builder.empty_wpt(wpt_cnt, wpt.x, wpt.y, wpt.heading);
+          wpt_cnt+=1;
         }
 
         if i != path.len() - 1 {
@@ -203,111 +139,85 @@ async fn generate(
     path_builder.set_control_interval_counts(control_interval_counts);
 
     for c in 0..constraints.len() {
-        let constraint: &Constraints = &constraints[c];
-        let parsed_scope: ParsedConstraintScope = match constraint {
-            Constraints::WptVelocityDirection { scope, direction } => {
-                parse_constraints_scope(scope, total_pnts, &rm)
-            }
-            Constraints::WptZeroVelocity { scope } => parse_constraints_scope(scope, total_pnts, &rm),
-            Constraints::StopPoint { scope } => parse_constraints_scope(scope, total_pnts, &rm),
-            Constraints::MaxVelocity { scope, velocity } => {
-                parse_constraints_scope(scope, total_pnts, &rm)
-            }
-            Constraints::ZeroAngularVelocity { scope } => {
-                parse_constraints_scope(scope, total_pnts, &rm)
-            }
-            Constraints::StraightLine { scope } => parse_constraints_scope(scope, total_pnts, &rm),
-        };
-        match constraint {
-            Constraints::WptVelocityDirection { scope, direction } => {
-                if !parsed_scope.segment {
-                    path_builder.wpt_linear_velocity_direction(
-                        fix_scope(parsed_scope.start, &rm),
-                        *direction,
-                    );
+      let constraint: &Constraints = &constraints[c];
+      match constraint {
+        Constraints::WptVelocityDirection { scope, direction } => {
+          // maybe make a macro or find a way to specify some constraints have a specific scope
+          /*
+          ifWaypoint((idx)=>{
+              println!("WptVelocityDirection {} {}", *idx, *direction);
+              path_builder.wpt_velocity_direction(*idx, *direction);
+          })
+          */
+          match scope { ChoreoConstraintScope::Waypoint(idx) => {
+              path_builder.wpt_linear_velocity_direction(fix_scope(idx[0], &rm), *direction);
+            },_ => {}}
+        },
+        Constraints::WptZeroVelocity { scope } => {
+          match scope { ChoreoConstraintScope::Waypoint(idx) => {
+              path_builder.wpt_linear_velocity_max_magnitude(fix_scope(idx[0], &rm), 0.0f64);
+            },_=>{}}
+        },
+        Constraints::MaxVelocity { scope , velocity} => {
+          match scope { ChoreoConstraintScope::Waypoint(idx) => {
+              path_builder.wpt_linear_velocity_max_magnitude(fix_scope(idx[0], &rm), *velocity)
+            },
+            ChoreoConstraintScope::Segment(idx) => {
+              path_builder.sgmt_linear_velocity_max_magnitude(fix_scope(idx[0], &rm) , fix_scope(idx[1], &rm), *velocity)
+            }}
+        },
+        Constraints::ZeroAngularVelocity { scope } => {
+          match scope { ChoreoConstraintScope::Waypoint(idx) => {
+              path_builder.wpt_angular_velocity(fix_scope(idx[0], &rm), 0.0)
+            },
+            ChoreoConstraintScope::Segment(idx) => {
+              path_builder.sgmt_angular_velocity(fix_scope(idx[0], &rm) , fix_scope(idx[1], &rm), 0.0)
+            }}
+        },
+        Constraints::StraightLine { scope } => {
+          match scope {
+            ChoreoConstraintScope::Segment(idx) => {
+              println!("Scope {} {}", idx[0], idx[1]);
+              for point in idx[0]..idx[1] {
+                let this_pt = fix_scope(point, &rm);
+                let next_pt = fix_scope(point+1, &rm);
+                println!("{} {}", this_pt, next_pt);
+                if this_pt != fix_scope(idx[0], &rm) {
+                  // points in between straight-line segments are automatically zero-velocity points
+                  path_builder.wpt_linear_velocity_max_magnitude(this_pt, 0.0f64);
                 }
+                let x1 = path[this_pt].x;
+                let x2 = path[next_pt].x;
+                let y1 = path[this_pt].y;
+                let y2 = path[next_pt].y;
+                path_builder.sgmt_linear_velocity_direction(this_pt , next_pt, (y2-y1).atan2(x2-x1))
+              }
+
+            }, _=>{}}
+        },
+        Constraints::StopPoint { scope } => {
+            match scope {
+                ChoreoConstraintScope::Waypoint(idx) => {
+                    let pt = fix_scope(idx[0], &rm);
+                    path_builder.wpt_linear_velocity_max_magnitude(pt, 0.0f64);
+                    path_builder.wpt_angular_velocity(pt, 0.0);
+                },
+                _=>{}
             }
-            Constraints::WptZeroVelocity { scope } => {
-                if !parsed_scope.segment {
-                    path_builder.wpt_linear_velocity_max_magnitude(
-                        fix_scope(parsed_scope.start, &rm),
-                        0.0f64,
-                    );
-                }
-            }
-            Constraints::StopPoint { scope } => {
-                if !parsed_scope.segment {
-                    path_builder.wpt_linear_velocity_max_magnitude(
-                        fix_scope(parsed_scope.start, &rm),
-                        0.0f64,
-                    );
-                    path_builder.wpt_angular_velocity(fix_scope(parsed_scope.start, &rm), 0.0);
-                }
-            }
-            Constraints::MaxVelocity { scope, velocity } => {
-                if !parsed_scope.segment {
-                    path_builder.wpt_linear_velocity_max_magnitude(
-                        fix_scope(parsed_scope.start, &rm),
-                        *velocity,
-                    );
-                } else {
-                    path_builder.sgmt_linear_velocity_max_magnitude(
-                        fix_scope(parsed_scope.start, &rm),
-                        fix_scope(parsed_scope.end, &rm),
-                        *velocity,
-                    );
-                }
-            }
-            Constraints::ZeroAngularVelocity { scope } => {
-                if !parsed_scope.segment {
-                    path_builder.wpt_angular_velocity(fix_scope(parsed_scope.start, &rm), 0.0)
-                } else {
-                    path_builder.sgmt_angular_velocity(
-                        fix_scope(parsed_scope.start, &rm),
-                        fix_scope(parsed_scope.end, &rm),
-                        0.0,
-                    )
-                }
-            }
-            Constraints::StraightLine { scope } => {
-                if parsed_scope.segment {
-                    let start = fix_scope(parsed_scope.start, &rm);
-                    let end = fix_scope(parsed_scope.end, &rm);
-                    if (start != end) {
-                        for point in parsed_scope.start..parsed_scope.end {
-                            let this_pt = fix_scope(point, &rm);
-                            let next_pt = fix_scope(point + 1, &rm);
-                            println!("{} {}", this_pt, next_pt);
-                            if this_pt != start {
-                                // points in between straight-line segments are automatically zero-velocity points
-                                path_builder.wpt_linear_velocity_max_magnitude(this_pt, 0.0f64);
-                            }
-                            let x1 = path[this_pt].x;
-                            let x2 = path[next_pt].x;
-                            let y1 = path[this_pt].y;
-                            let y2 = path[next_pt].y;
-                            path_builder.sgmt_linear_velocity_direction(
-                                this_pt,
-                                next_pt,
-                                (y2 - y1).atan2(x2 - x1),
-                            )
-                        }
-                    }
-                }
-            }
-            // add more cases here to impl each constraint.
         }
-        // The below might be helpful
-        // let Constraints!(scope, ..) = constraint;
-        // match scope {
-        //   ChoreoConstraintScope::Full(_) =>
-        //     println!("Full Path")
-        //   ,
-        //   ChoreoConstraintScope::Segment(range) =>
-        //     println!("From {} to {}", range.start, range.end),
-        //   ChoreoConstraintScope::Waypoint(idx) =>
-        //     println!("At {}", idx)
-        // }
+        // add more cases here to impl each constraint.
+      }
+      // The below might be helpful
+      // let Constraints!(scope, ..) = constraint;
+      // match scope {
+      //   ChoreoConstraintScope::Full(_) => 
+      //     println!("Full Path")
+      //   ,
+      //   ChoreoConstraintScope::Segment(range) => 
+      //     println!("From {} to {}", range.start, range.end),
+      //   ChoreoConstraintScope::Waypoint(idx) =>
+      //     println!("At {}", idx)
+      // }
     }
     let half_wheel_base = config.wheelbase / 2.0;
     let half_track_width = config.trackWidth / 2.0;
@@ -315,36 +225,36 @@ async fn generate(
         mass: config.mass,
         moi: config.rotationalInertia,
         modules: vec![
-            SwerveModule {
-                x: half_wheel_base,
-                y: half_track_width,
-                wheel_radius: config.wheelRadius,
-                wheel_max_angular_velocity: config.wheelMaxVelocity,
-                wheel_max_torque: config.wheelMaxTorque,
-            },
-            SwerveModule {
-                x: half_wheel_base,
-                y: -half_track_width,
-                wheel_radius: config.wheelRadius,
-                wheel_max_angular_velocity: config.wheelMaxVelocity,
-                wheel_max_torque: config.wheelMaxTorque,
-            },
-            SwerveModule {
-                x: -half_wheel_base,
-                y: half_track_width,
-                wheel_radius: config.wheelRadius,
-                wheel_max_angular_velocity: config.wheelMaxVelocity,
-                wheel_max_torque: config.wheelMaxTorque,
-            },
-            SwerveModule {
-                x: -half_wheel_base,
-                y: -half_track_width,
-                wheel_radius: config.wheelRadius,
-                wheel_max_angular_velocity: config.wheelMaxVelocity,
-                wheel_max_torque: config.wheelMaxTorque,
-            },
-        ],
-    };
+          SwerveModule {
+            x: half_wheel_base,
+            y: half_track_width,
+            wheel_radius: config.wheelRadius,
+            wheel_max_angular_velocity: config.wheelMaxVelocity,
+            wheel_max_torque: config.wheelMaxTorque
+          },
+          SwerveModule {
+            x: half_wheel_base,
+            y: -half_track_width,
+            wheel_radius: config.wheelRadius,
+            wheel_max_angular_velocity: config.wheelMaxVelocity,
+            wheel_max_torque: config.wheelMaxTorque
+          },
+          SwerveModule {
+            x: -half_wheel_base,
+            y: half_track_width,
+            wheel_radius: config.wheelRadius,
+            wheel_max_angular_velocity: config.wheelMaxVelocity,
+            wheel_max_torque: config.wheelMaxTorque
+          },
+          SwerveModule {
+            x: -half_wheel_base,
+            y: -half_track_width,
+            wheel_radius: config.wheelRadius,
+            wheel_max_angular_velocity: config.wheelMaxVelocity,
+            wheel_max_torque: config.wheelMaxTorque
+          }
+        ]
+      };
     //path_builder.set_bumpers(config.bumperLength, config.bumperWidth);
     path_builder.sgmt_circle_obstacle(0, path.len()-1, 3.0, 3.0, 1.0);
     path_builder.set_drivetrain(&drivetrain);
@@ -353,7 +263,7 @@ async fn generate(
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![generate_trajectory, cancel, expand_fs_scope])
+        .invoke_handler(tauri::generate_handler![generate, cancel, expand_fs_scope])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
