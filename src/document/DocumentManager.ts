@@ -54,7 +54,7 @@ export class DocumentManager {
     // });
     //this.loadPriorFile();
     this.newFile();
-
+    //this.model.uiState.setSaveFileName("");
     reaction(
       () => this.model.document.history.undoIdx,
       () => {
@@ -261,11 +261,18 @@ export class DocumentManager {
         "deploy",
         "choreo"
       );
+      await invoke("expand_fs_scope", { path: projectRoot, isFile: false });
+      if (await fs.exists(chorFilePath)) {
+        let overwriteFile = await dialog.confirm("This project already has a Choreo file. Overwrite that file?");
+        if (!overwriteFile) {
+          return;
+        }
+      }
       // save the chor file
       this.model.uiState.setSaveFileName(chorFilePath);
       this.model.document.setIsRobotProject(true);
       this.model.document.setProjectRoot(projectRoot);
-      await invoke("expand_fs_scope", { path: projectRoot, isFile: false });
+      
       await this.saveFile();
       await this.openFile(chorFilePath);
       console.log(this.model.document.pathlist.paths);

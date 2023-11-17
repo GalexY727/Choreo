@@ -74,20 +74,14 @@ class AppMenu extends Component<Props, State> {
                 <MenuIcon></MenuIcon>
               </IconButton>
             </Tooltip>
-            {this.context.model.uiState.getProjectFolderName()}
+            {this.context.model.document.isRobotProject ? this.context.model.uiState.getProjectFolderName() : "Choreo"}
           </div>
           <List>
             <ListItemButton onClick={() => this.context.openFile()}>
               <ListItemIcon>
                 <UploadIcon />
               </ListItemIcon>
-              <ListItemText primary="Open File"></ListItemText>
-            </ListItemButton>
-            <ListItemButton onClick={() => this.context.selectBuildGradle()}>
-              <ListItemIcon>
-                <UploadIcon />
-              </ListItemIcon>
-              <ListItemText primary="Save to Robot Project"></ListItemText>
+              <ListItemText primary="Open File/Project"></ListItemText>
             </ListItemButton>
             <ListItemButton
               onClick={() => {
@@ -98,6 +92,12 @@ class AppMenu extends Component<Props, State> {
                 <SaveIcon />
               </ListItemIcon>
               <ListItemText primary="Save File"></ListItemText>
+            </ListItemButton>
+            <ListItemButton onClick={() => this.context.selectBuildGradle()}>
+              <ListItemIcon>
+              <SaveIcon />
+              </ListItemIcon>
+              <ListItemText primary="Save as Robot Project"></ListItemText>
             </ListItemButton>
             <ListItemButton
               onClick={async () => {
@@ -115,6 +115,24 @@ class AppMenu extends Component<Props, State> {
                 <NoteAddOutlined />
               </ListItemIcon>
               <ListItemText primary="New File"></ListItemText>
+            </ListItemButton>
+            <ListItemButton
+              onClick={async () => {
+                if (
+                  await dialog.confirm(
+                    "You may lose unsaved changes. Continue?",
+                    { title: "Choreo", type: "warning" }
+                  )
+                ) {
+                  this.context.newFile();
+                  this.context.selectBuildGradle();
+                }
+              }}
+            >
+              <ListItemIcon>
+                <NoteAddOutlined />
+              </ListItemIcon>
+              <ListItemText primary="New Robot Project"></ListItemText>
             </ListItemButton>
             <ListItemButton
               onClick={() => {
