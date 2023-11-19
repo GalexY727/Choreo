@@ -21,16 +21,16 @@
         "all": true
       },
       "dialog": {
-        "ask": true,
+        "confirm": true,
         "open": true,
         "save": true,
-        "confirm": true
-      },
-      "path": {
-        "all": true
+        "ask": true
       },
       "window": {
         "setTitle": true
+      },
+      "path": {
+        "all": true
       }
     },
     "bundle": {

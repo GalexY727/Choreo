@@ -15,7 +15,7 @@ license = "BSD-3-Clause"
 tauri-build = { version = "1.4", features = [] }
 
 [dependencies]
-tauri = { version = "1.4", features = [ "dialog-confirm", "path-all", "window-set-title", "dialog-ask", "dialog-save", "dialog-open", "fs-all", "shell-open", "devtools"] }
+tauri = { version = "1.4", features = [ "window-set-title", "dialog-ask", "path-all", "dialog-confirm", "dialog-save", "dialog-open", "fs-all", "shell-open", "devtools"] }
 tauri-plugin-persisted-scope = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 serde = { version = "1.0", features = ["derive"] }
 trajoptlib = { git = "https://github.com/SleipnirGroup/TrajoptLib.git", rev = "20bb8c2ef016ceedab0dc5c0271ad9b69048039a" }
