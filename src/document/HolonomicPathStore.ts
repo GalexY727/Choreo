@@ -419,13 +419,16 @@ export const HolonomicPathStore = types
         const root = getRoot<IStateStore>(self);
         if (root.document.isRobotProject) {
           console.log("Trying to load path", self.uuid);
-          let trajectory = JSON.parse(await fs.readTextFile(self.trajFile()));
-          console.log(trajectory);
-          if (Array.isArray(trajectory.samples)) {
+          try {
+            let trajectory = JSON.parse(await fs.readTextFile(self.trajFile()));
             console.log(trajectory);
-            self.setTrajectory(trajectory.samples);
+            if (Array.isArray(trajectory.samples)) {
+              console.log(trajectory);
+              self.setTrajectory(trajectory.samples);
+            }
+          } catch {
+            console.error("Traj read error");
           }
-
         }
       },
       async exportTrajectory() {
