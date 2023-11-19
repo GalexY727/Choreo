@@ -186,6 +186,17 @@ export const HolonomicPathStore = types
       },
     };
   })
+  .views((self)=>{
+    return {
+      async trajFileExists() {
+        let trajFile = self.trajFile();
+        if (trajFile === "") {
+          return false;
+        }
+        return await fs.exists(trajFile);
+      }
+    }
+  })
   .actions((self) => {
     return {
       addConstraint(
@@ -213,7 +224,19 @@ export const HolonomicPathStore = types
         self.defaultControlIntervalCount = counts;
       },
       setName(name: string) {
-        self.name = name;
+        // rename file if it exists
+        (async ()=>{
+          let oldPath = self.trajFile();
+          let oldPathExists = await self.trajFileExists();
+          self.name = name;
+          if (oldPathExists) {
+            let newPath = self.trajFile(); 
+            let newPathExists = await self.trajFileExists();
+            if (newPathExists) {
+              await fs.renameFile(oldPath, newPath);
+            }
+          }
+        })()
       },
       selectOnly(selectedIndex: number) {
         const root = getRoot<IStateStore>(self);

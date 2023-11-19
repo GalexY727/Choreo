@@ -3,6 +3,7 @@ import { SavedPathList } from "./DocumentSpecTypes";
 import { HolonomicPathStore } from "./HolonomicPathStore";
 import { v4 as uuidv4 } from "uuid";
 import { ConstraintStores } from "./ConstraintStore";
+import { fs } from "@tauri-apps/api";
 
 export const PathListStore = types
   .model("PathListStore", {
@@ -81,12 +82,24 @@ export const PathListStore = types
   .actions((self) => {
     return {
       deletePath(uuid: string) {
-        self.paths.delete(uuid);
-        if (self.paths.size === 0) {
-          self.addPath("New Path", true);
-        } else if (self.activePathUUID === uuid) {
-          self.setActivePathUUID(self.pathUUIDs[0]);
-        }
+        (async ()=>{
+          let path = self.paths.get(uuid);
+          if (path === undefined) {
+            return;
+          }
+          let pathFile = path.trajFile();
+          let pathExists = await path.trajFileExists();
+          
+          if (pathExists) {
+            await fs.removeFile(pathFile);
+          }
+          self.paths.delete(uuid);
+          if (self.paths.size === 0) {
+            self.addPath("New Path", true);
+          } else if (self.activePathUUID === uuid) {
+            self.setActivePathUUID(self.pathUUIDs[0]);
+          }
+        })()
       },
       fromSavedPathList(list: SavedPathList) {
         self.paths.clear();
